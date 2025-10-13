@@ -4,6 +4,12 @@ MCP (Model Context Protocol) сервер для Seq - позволяет LLM п
 
 > [English version](README-EN.md)
 
+## CI/CD Status
+
+![CI](https://github.com/YOUR_USERNAME/seq-mcp-server/workflows/CI/badge.svg)
+![Docker Build](https://github.com/YOUR_USERNAME/seq-mcp-server/workflows/Docker%20Build%20and%20Push/badge.svg)
+![Security](https://github.com/YOUR_USERNAME/seq-mcp-server/workflows/Security%20and%20Code%20Quality/badge.svg)
+
 ## ✨ Возможности
 
 - **7 MCP инструментов**: Поиск событий, управление сигналами, SQL запросы, список приложений
@@ -722,7 +728,9 @@ dotnet publish src/SeqMcp/SeqMcp.csproj -c Release -o ./publish
 - [x] ~~Дополнительные MCP Resources (last-hour, today, slow, stats)~~
 - [x] ~~Дополнительные MCP Tools (create_signal, update_signal, delete_signal, get_apps)~~
 - [x] ~~Интеграционные тесты с живым Seq сервером (13 integration тестов)~~
-- [ ] CI/CD pipeline (GitHub Actions)
+- [x] ~~CI/CD pipeline (GitHub Actions) - 3 workflows: CI, Docker, Security~~
+
+**CI/CD Pipeline**: См. [docs/CICD.md](docs/CICD.md) для полной документации
 
 ## 📦 Зависимости
 
