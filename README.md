@@ -6,7 +6,7 @@ MCP (Model Context Protocol) сервер для Seq - позволяет LLM п
 
 ## ✨ Возможности
 
-- **3 MCP инструмента**: Поиск событий, список сигналов, SQL запросы
+- **7 MCP инструментов**: Поиск событий, управление сигналами, SQL запросы, список приложений
 - **9 MCP ресурсов**: Быстрый доступ к последним событиям (seq://)
 - **8 MCP промптов**: Готовые шаблоны для анализа логов (на русском)
 - **HTTP Transport**: Server-Sent Events (SSE) по спецификации MCP 2025-03-26
@@ -409,7 +409,7 @@ dotnet test --collect:"XPlat Code Coverage"
 
 ## 🛠️ MCP инструменты
 
-Сервер предоставляет 3 инструмента для работы с Seq:
+Сервер предоставляет 7 инструментов для работы с Seq:
 
 ### 1. seq_search_events
 
@@ -472,6 +472,99 @@ dotnet test --collect:"XPlat Code Coverage"
   "Query": "select count(*) from stream",
   "Result": "{...}",
   "RowCount": 1
+}
+```
+
+### 4. seq_create_signal
+
+Создание нового сигнала/алерта в Seq.
+
+**Параметры:**
+- `title` (строка, обязательно): Название сигнала
+- `description` (строка, опционально): Описание сигнала
+- `filter` (строка, опционально): Фильтр Seq для сигнала
+- `isProtected` (boolean, опционально): Защищённый сигнал (по умолчанию false)
+
+**Возвращает:** JSON с результатом создания:
+- ID созданного сигнала
+- Название
+- Сообщение об успехе
+
+**Пример:**
+```json
+{
+  "SignalId": "signal-12345",
+  "Title": "High Error Rate",
+  "Message": "Signal 'High Error Rate' created successfully"
+}
+```
+
+### 5. seq_update_signal
+
+Обновление существующего сигнала.
+
+**Параметры:**
+- `signalId` (строка, обязательно): ID сигнала для обновления
+- `title` (строка, опционально): Новое название
+- `description` (строка, опционально): Новое описание
+- `filter` (строка, опционально): Новый фильтр
+
+**Возвращает:** JSON с результатом обновления:
+- ID сигнала
+- Сообщение об успехе
+
+**Пример:**
+```json
+{
+  "SignalId": "signal-12345",
+  "Message": "Signal 'signal-12345' updated successfully"
+}
+```
+
+### 6. seq_delete_signal
+
+Удаление сигнала по ID.
+
+**Параметры:**
+- `signalId` (строка, обязательно): ID сигнала для удаления
+
+**Возвращает:** JSON с результатом удаления:
+- ID сигнала
+- Сообщение об успехе
+
+**Пример:**
+```json
+{
+  "SignalId": "signal-12345",
+  "Message": "Signal 'signal-12345' deleted successfully"
+}
+```
+
+### 7. seq_get_apps
+
+Получение списка приложений, логирующих в Seq.
+
+**Параметры:**
+- `limit` (целое, опционально): Максимальное количество приложений (по умолчанию 50)
+
+**Возвращает:** JSON со списком приложений:
+- Список приложений с именами и количеством событий
+- Общее количество
+
+**Пример:**
+```json
+{
+  "Applications": [
+    {
+      "Name": "WebApp",
+      "EventCount": 15420
+    },
+    {
+      "Name": "BackgroundService",
+      "EventCount": 8932
+    }
+  ],
+  "TotalCount": 2
 }
 ```
 
@@ -627,7 +720,7 @@ dotnet publish src/SeqMcp/SeqMcp.csproj -c Release -o ./publish
 - [x] ~~Health Check endpoint~~
 - [x] ~~Docker контейнеризация (Dockerfile, docker-compose, .dockerignore)~~
 - [x] ~~Дополнительные MCP Resources (last-hour, today, slow, stats)~~
-- [ ] Дополнительные MCP Tools (create_signal, tail_logs, get_apps, dashboards)
+- [x] ~~Дополнительные MCP Tools (create_signal, update_signal, delete_signal, get_apps)~~
 - [ ] Интеграционные тесты с живым Seq сервером
 - [ ] CI/CD pipeline (GitHub Actions)
 
@@ -681,4 +774,4 @@ MIT
 
 ---
 
-**Статус**: ✅ **Готов к production** - Полнофункциональный MCP сервер с 3 инструментами, 9 ресурсами, 8 промптами, HTTP транспортом, обработкой ошибок и полным тестированием
+**Статус**: ✅ **Готов к production** - Полнофункциональный MCP сервер с 7 инструментами, 9 ресурсами, 8 промптами, HTTP транспортом, обработкой ошибок и полным тестированием

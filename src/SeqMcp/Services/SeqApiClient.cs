@@ -269,6 +269,284 @@ public class SeqApiClient : ISeqApiClient
         return $"({scopeFilter}) and ({userFilter})";
     }
 
+    public async Task<CreateSignalResult> CreateSignalAsync(
+        string title,
+        string? description,
+        string? filter,
+        bool isProtected = false)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            _logger.LogError("CreateSignalAsync called with null or empty title");
+            throw new ArgumentException(
+                "Title cannot be null or empty",
+                nameof(title));
+        }
+
+        try
+        {
+            _logger.LogInformation(
+                "Creating signal with title: '{Title}', protected: {IsProtected}",
+                title,
+                isProtected);
+
+            var signalEntity = await _connection.Signals.TemplateAsync();
+            signalEntity.Title = title;
+            signalEntity.Description = description;
+            signalEntity.IsProtected = isProtected;
+
+            // Set filter if provided
+            if (!string.IsNullOrWhiteSpace(filter))
+            {
+                // Create a simple filter using the signal's existing filter structure
+                var filterPart = signalEntity.Filters?.FirstOrDefault();
+                if (filterPart != null)
+                {
+                    filterPart.Filter = filter;
+                }
+            }
+
+            var createdSignal = await _connection.Signals.AddAsync(signalEntity);
+
+            _logger.LogInformation(
+                "Signal created successfully with ID: {SignalId}",
+                createdSignal.Id);
+
+            return new CreateSignalResult(
+                SignalId: createdSignal.Id ?? string.Empty,
+                Title: title,
+                Message: $"Signal '{title}' created successfully");
+        }
+        catch (Seq.Api.Client.SeqApiException ex)
+        {
+            _logger.LogError(
+                ex,
+                "Seq API error while creating signal: {StatusCode} - {Message}",
+                ex.StatusCode,
+                ex.Message);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Unexpected error while creating signal");
+            throw;
+        }
+    }
+
+    public async Task<UpdateSignalResult> UpdateSignalAsync(
+        string signalId,
+        string? title = null,
+        string? description = null,
+        string? filter = null)
+    {
+        if (string.IsNullOrWhiteSpace(signalId))
+        {
+            _logger.LogError("UpdateSignalAsync called with null or empty signalId");
+            throw new ArgumentException(
+                "SignalId cannot be null or empty",
+                nameof(signalId));
+        }
+
+        try
+        {
+            _logger.LogInformation(
+                "Updating signal: {SignalId}",
+                signalId);
+
+            var signal = await _connection.Signals.FindAsync(signalId);
+
+            if (signal == null)
+            {
+                var message = $"Signal with ID '{signalId}' not found";
+                _logger.LogWarning(message);
+                throw new ArgumentException(message, nameof(signalId));
+            }
+
+            // Update fields if provided
+            if (title != null)
+            {
+                signal.Title = title;
+            }
+
+            if (description != null)
+            {
+                signal.Description = description;
+            }
+
+            if (filter != null)
+            {
+                var filterPart = signal.Filters?.FirstOrDefault();
+                if (filterPart != null)
+                {
+                    filterPart.Filter = filter;
+                }
+            }
+
+            await _connection.Signals.UpdateAsync(signal);
+
+            _logger.LogInformation(
+                "Signal {SignalId} updated successfully",
+                signalId);
+
+            return new UpdateSignalResult(
+                SignalId: signalId,
+                Message: $"Signal '{signalId}' updated successfully");
+        }
+        catch (Seq.Api.Client.SeqApiException ex)
+        {
+            _logger.LogError(
+                ex,
+                "Seq API error while updating signal: {StatusCode} - {Message}",
+                ex.StatusCode,
+                ex.Message);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Unexpected error while updating signal");
+            throw;
+        }
+    }
+
+    public async Task<DeleteSignalResult> DeleteSignalAsync(string signalId)
+    {
+        if (string.IsNullOrWhiteSpace(signalId))
+        {
+            _logger.LogError("DeleteSignalAsync called with null or empty signalId");
+            throw new ArgumentException(
+                "SignalId cannot be null or empty",
+                nameof(signalId));
+        }
+
+        try
+        {
+            _logger.LogInformation(
+                "Deleting signal: {SignalId}",
+                signalId);
+
+            var signal = await _connection.Signals.FindAsync(signalId);
+
+            if (signal == null)
+            {
+                var message = $"Signal with ID '{signalId}' not found";
+                _logger.LogWarning(message);
+                throw new ArgumentException(message, nameof(signalId));
+            }
+
+            await _connection.Signals.RemoveAsync(signal);
+
+            _logger.LogInformation(
+                "Signal {SignalId} deleted successfully",
+                signalId);
+
+            return new DeleteSignalResult(
+                SignalId: signalId,
+                Message: $"Signal '{signalId}' deleted successfully");
+        }
+        catch (Seq.Api.Client.SeqApiException ex)
+        {
+            _logger.LogError(
+                ex,
+                "Seq API error while deleting signal: {StatusCode} - {Message}",
+                ex.StatusCode,
+                ex.Message);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Unexpected error while deleting signal");
+            throw;
+        }
+    }
+
+    public async Task<GetApplicationsResult> GetApplicationsAsync(int limit = 50)
+    {
+        if (limit < 0)
+        {
+            _logger.LogError(
+                "GetApplicationsAsync called with negative limit: {Limit}",
+                limit);
+            throw new ArgumentException(
+                "Limit must be non-negative",
+                nameof(limit));
+        }
+
+        try
+        {
+            _logger.LogInformation(
+                "Getting applications list with limit: {Limit}",
+                limit);
+
+            // Determine scope field for grouping
+            var scopeField = _requestContext?.ScopeField
+                            ?? _config.DefaultScopeField;
+
+            // Use SQL query to get unique applications with event counts
+            var sqlQuery = $@"
+                select {scopeField} as Application, count(*) as EventCount
+                from stream
+                where {scopeField} is not null
+                group by {scopeField}
+                order by EventCount desc
+                limit {limit}";
+
+            var result = await _connection.Data.QueryAsync(sqlQuery);
+            var applications = new List<SeqApplication>();
+
+            if (result?.Rows != null)
+            {
+                foreach (var row in result.Rows)
+                {
+                    // SQL query result rows are object arrays matching column order
+                    // Our query: select {scopeField} as Application, count(*) as EventCount
+                    // So: row[0] = Application, row[1] = EventCount
+                    if (row.Length >= 2)
+                    {
+                        var appName = row[0]?.ToString() ?? "Unknown";
+                        var eventCount = row[1] != null ? Convert.ToInt32(row[1]) : 0;
+
+                        if (appName != "Unknown" && !string.IsNullOrWhiteSpace(appName))
+                        {
+                            applications.Add(new SeqApplication(
+                                Name: appName,
+                                EventCount: eventCount));
+                        }
+                    }
+                }
+            }
+
+            _logger.LogInformation(
+                "Found {ApplicationCount} applications",
+                applications.Count);
+
+            return new GetApplicationsResult(
+                Applications: applications,
+                TotalCount: applications.Count);
+        }
+        catch (Seq.Api.Client.SeqApiException ex)
+        {
+            _logger.LogError(
+                ex,
+                "Seq API error while getting applications: {StatusCode} - {Message}",
+                ex.StatusCode,
+                ex.Message);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Unexpected error while getting applications");
+            throw;
+        }
+    }
+
     public void Dispose()
     {
         _connection?.Dispose();
