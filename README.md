@@ -192,40 +192,146 @@ http://localhost:5555/health
 
 ## 🚀 Быстрый старт
 
-### Требования
+### Запуск в Docker (рекомендуется)
 
-**Локальная разработка:**
+Самый простой способ - использовать готовый Docker образ из GitHub Container Registry:
+
+```bash
+# 1. Запустить Seq MCP Server (укажите URL вашего Seq сервера)
+docker run -d \
+  --name seq-mcp \
+  -p 5555:5555 \
+  -e SEQ_URL=http://your-seq-server:5341 \
+  ghcr.io/weselow/seq-mcp-server:latest
+
+# 2. Проверить что запустился
+curl http://localhost:5555/health
+```
+
+**Обязательные параметры:**
+- `SEQ_URL` - адрес вашего Seq сервера (например, `http://localhost:5341`)
+- `SEQ_API_KEY` - API ключ (если Seq требует аутентификацию)
+
+**Опциональные параметры для фильтрации:**
+- `SEQ_PROJECT_SCOPE` - имя проекта для фильтрации логов (например, `"MyWebApp"`)
+- `SEQ_SCOPE_FIELD` - поле в логах для фильтрации (по умолчанию `"Application"`)
+
+**Зачем нужна фильтрация (Scope Filtering)?**
+
+Если в ваш Seq пишут несколько проектов (WebApp, BackgroundService, API), то без фильтрации LLM получит логи ВСЕХ проектов, что:
+- Тратит токены на ненужные логи
+- Замедляет поиск нужной информации
+- Перегружает контекст LLM
+
+С фильтрацией по `Application = 'MyWebApp'` вы получите только логи вашего проекта, экономя токены и улучшая точность анализа.
+
+### Пример конфигурации MCP сервера для Claude Desktop
+
+После запуска Docker контейнера, добавьте сервер в конфигурацию Claude Desktop:
+
+**Windows** (`%APPDATA%\Claude\claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "seq": {
+      "url": "http://localhost:5555/sse"
+    }
+  }
+}
+```
+
+**Linux/macOS** (`~/.config/Claude/claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "seq": {
+      "url": "http://localhost:5555/sse"
+    }
+  }
+}
+```
+
+**Примечание:** Все настройки (SEQ_URL, фильтрация) задаются при запуске Docker контейнера через `-e` переменные. В конфигурации Claude Desktop указывается только URL MCP сервера.
+
+### Полный пример с Docker Compose
+
+Запустить Seq и MCP сервер вместе:
+
+```bash
+# 1. Клонировать репозиторий
+git clone https://github.com/weselow/seq-mcp-server.git
+cd seq-mcp-server
+
+# 2. Запустить всё одной командой
+docker-compose up -d
+
+# 3. Проверить
+curl http://localhost:5555/health
+
+# Seq UI доступен: http://localhost:8080
+```
+
+В `docker-compose.yml` включено:
+- Seq сервер (порт 8080 UI, 5341 ingestion)
+- Seq MCP Server (порт 5555)
+- Health checks и автозависимости
+
+---
+
+### Альтернатива: Запуск без Docker
+
+**Требования:**
 - .NET 9 SDK
-- Запущенный Seq сервер (локально или удалённо)
+- Запущенный Seq сервер
 
-**Docker (рекомендуется):**
-- Docker Desktop 20.10+
-- Docker Compose 2.0+
-
-### Сборка
-
+**Сборка и запуск:**
 ```bash
+# Сборка
 dotnet build
-```
 
-### Запуск MCP сервера
-
-**Для разработки:**
-```bash
-cd src/SeqMcp
-dotnet run
-```
-
-**Для production (публикация):**
-```bash
-# Опубликовать self-contained приложение
+# Публикация
 dotnet publish src/SeqMcp/SeqMcp.csproj -c Release -o ./publish
 
-# Запустить опубликованное приложение
+# Запуск
+export SEQ_URL="http://localhost:5341"
 ./publish/SeqMcp
 ```
 
-Сервер запустится на `http://localhost:5555`
+**Конфигурация для Claude Desktop (без Docker):**
+
+**Windows:**
+```json
+{
+  "mcpServers": {
+    "seq": {
+      "command": "M:\\repos\\seq-mcp-server\\publish\\SeqMcp.exe",
+      "env": {
+        "SEQ_URL": "http://localhost:5341",
+        "SEQ_API_KEY": "ваш-api-ключ-если-нужен",
+        "SEQ_PROJECT_SCOPE": "MyProject",
+        "SEQ_SCOPE_FIELD": "Application"
+      }
+    }
+  }
+}
+```
+
+**Linux/macOS:**
+```json
+{
+  "mcpServers": {
+    "seq": {
+      "command": "/path/to/seq-mcp-server/publish/SeqMcp",
+      "env": {
+        "SEQ_URL": "http://localhost:5341",
+        "SEQ_API_KEY": "ваш-api-ключ-если-нужен",
+        "SEQ_PROJECT_SCOPE": "MyProject",
+        "SEQ_SCOPE_FIELD": "Application"
+      }
+    }
+  }
+}
+```
 
 ## 🐳 Docker
 
@@ -645,71 +751,16 @@ dotnet test --collect:"XPlat Code Coverage"
 ### 8. seq_daily_report
 Ежедневный отчёт о состоянии логов
 
-## 🔌 Использование с Claude Desktop
+## 🔌 Интеграция с Claude Desktop
 
-### Шаг 1: Опубликуйте проект
+Конфигурация Claude Desktop описана в разделе [🚀 Быстрый старт](#-быстрый-старт) выше.
 
-```bash
-dotnet publish src/SeqMcp/SeqMcp.csproj -c Release -o ./publish
-```
+**Два способа подключения:**
 
-### Шаг 2: Настройте Claude Desktop
+1. **Docker (рекомендуется)** - запустите контейнер и укажите `"url": "http://localhost:5555/sse"` в конфиге
+2. **Без Docker** - опубликуйте проект и укажите `"command"` с путём к `.exe` в конфиге
 
-Добавьте в конфигурацию Claude Desktop (`claude_desktop_config.json`):
-
-**Windows:**
-```json
-{
-  "mcpServers": {
-    "seq": {
-      "command": "M:\\repos\\seq-mcp-server\\publish\\SeqMcp.exe",
-      "env": {
-        "SEQ_URL": "http://localhost:8080",
-        "SEQ_API_KEY": "ваш-api-ключ-если-нужен",
-        "SEQ_PROJECT_SCOPE": "MyProject",
-        "SEQ_SCOPE_FIELD": "Application"
-      }
-    }
-  }
-}
-```
-
-**Linux/macOS:**
-```json
-{
-  "mcpServers": {
-    "seq": {
-      "command": "/path/to/seq-mcp-server/publish/SeqMcp",
-      "env": {
-        "SEQ_URL": "http://localhost:8080",
-        "SEQ_API_KEY": "ваш-api-ключ-если-нужен",
-        "SEQ_PROJECT_SCOPE": "MyProject",
-        "SEQ_SCOPE_FIELD": "Application"
-      }
-    }
-  }
-}
-```
-
-**Примечания:**
-- `SEQ_PROJECT_SCOPE` и `SEQ_SCOPE_FIELD` опциональны - убрать если не нужна фильтрация
-- `SEQ_API_KEY` нужен только если Seq сервер требует аутентификацию
-
-**Альтернатива (разработка, медленнее):**
-```json
-{
-  "mcpServers": {
-    "seq": {
-      "command": "dotnet",
-      "args": ["run", "--no-build", "--project", "путь/к/seq-mcp-server/src/SeqMcp/SeqMcp.csproj"],
-      "env": {
-        "SEQ_URL": "http://localhost:8080",
-        "SEQ_API_KEY": "ваш-api-ключ-если-нужен"
-      }
-    }
-  }
-}
-```
+Подробные примеры конфигурации для Windows/Linux/macOS смотрите в разделе "Быстрый старт".
 
 ## 📋 TODO / Дорожная карта
 
