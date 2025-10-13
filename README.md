@@ -69,16 +69,16 @@ curl http://localhost:5555/health
 
 С фильтрацией по `Application = 'MyWebApp'` вы получите только логи вашего проекта, экономя токены и улучшая точность анализа.
 
-### Пример конфигурации MCP сервера для Claude Desktop
+### Конфигурация Claude Desktop
 
-После запуска Docker контейнера, добавьте сервер в конфигурацию Claude Desktop:
+После запуска MCP сервера (Docker или локально), добавьте его в конфигурацию Claude Desktop:
 
 **Windows** (`%APPDATA%\Claude\claude_desktop_config.json`):
 ```json
 {
   "mcpServers": {
     "seq": {
-      "url": "http://localhost:5555/sse"
+      "url": "http://localhost:5555/sse"    // ОБЯЗАТЕЛЬНО: URL MCP сервера
     }
   }
 }
@@ -89,13 +89,17 @@ curl http://localhost:5555/health
 {
   "mcpServers": {
     "seq": {
-      "url": "http://localhost:5555/sse"
+      "url": "http://localhost:5555/sse"    // ОБЯЗАТЕЛЬНО: URL MCP сервера
     }
   }
 }
 ```
 
-**Примечание:** Все настройки (SEQ_URL, SEQ_API_KEY, фильтрация) задаются при запуске Docker контейнера через `-e` переменные. В конфигурации Claude Desktop указывается только URL MCP сервера.
+**Важно:**
+- Наш сервер использует **HTTP/SSE транспорт**, поэтому используется `url`, а не `command`
+- Все настройки (SEQ_URL, SEQ_API_KEY, фильтрация) задаются при запуске сервера через переменные окружения
+- После изменения конфигурации перезапустите Claude Desktop
+- Claude автоматически переподключится к серверу при reconnect
 
 ### Полный пример с Docker Compose
 
@@ -128,56 +132,54 @@ curl http://localhost:5555/health
 - .NET 9 SDK
 - Запущенный Seq сервер
 
-**Сборка и запуск:**
+**Шаг 1: Сборка и публикация**
 ```bash
 # Сборка
 dotnet build
 
 # Публикация
 dotnet publish src/SeqMcp/SeqMcp.csproj -c Release -o ./publish
-
-# Запуск
-export SEQ_URL="http://localhost:5341"
-./publish/SeqMcp
 ```
 
-**Конфигурация для Claude Desktop (без Docker):**
+**Шаг 2: Запуск MCP сервера**
 
-**Windows:**
-```json
-{
-  "mcpServers": {
-    "seq": {
-      "command": "M:\\repos\\seq-mcp-server\\publish\\SeqMcp.exe",
-      "env": {
-        "SEQ_URL": "http://localhost:5341",              // ОБЯЗАТЕЛЬНО: URL Seq сервера
-        "SEQ_API_KEY": "your-api-key",                   // ОПЦИОНАЛЬНО: API ключ Seq
-        "SEQ_PROJECT_SCOPE": "MyProject",                // ОПЦИОНАЛЬНО: фильтр по проекту
-        "SEQ_SCOPE_FIELD": "Application",                // ОПЦИОНАЛЬНО: поле для фильтрации (по умолчанию "Application")
-        "PORT": "5555"                                    // ОПЦИОНАЛЬНО: порт сервера (по умолчанию 5555)
-      }
-    }
-  }
-}
+Запустите сервер в отдельном терминале с нужными переменными окружения:
+
+**Windows (PowerShell):**
+```powershell
+$env:SEQ_URL="http://localhost:5341"              # ОБЯЗАТЕЛЬНО: URL Seq сервера
+$env:SEQ_API_KEY="your-api-key"                   # ОПЦИОНАЛЬНО: API ключ Seq
+$env:SEQ_PROJECT_SCOPE="MyProject"                # ОПЦИОНАЛЬНО: фильтр по проекту
+$env:SEQ_SCOPE_FIELD="Application"                # ОПЦИОНАЛЬНО: поле для фильтрации
+$env:PORT="5555"                                  # ОПЦИОНАЛЬНО: порт сервера
+.\publish\SeqMcp.exe
 ```
 
 **Linux/macOS:**
+```bash
+export SEQ_URL="http://localhost:5341"            # ОБЯЗАТЕЛЬНО: URL Seq сервера
+export SEQ_API_KEY="your-api-key"                 # ОПЦИОНАЛЬНО: API ключ Seq
+export SEQ_PROJECT_SCOPE="MyProject"              # ОПЦИОНАЛЬНО: фильтр по проекту
+export SEQ_SCOPE_FIELD="Application"              # ОПЦИОНАЛЬНО: поле для фильтрации
+export PORT="5555"                                # ОПЦИОНАЛЬНО: порт сервера
+./publish/SeqMcp
+```
+
+**Шаг 3: Конфигурация Claude Desktop**
+
+После запуска сервера, добавьте его в конфигурацию Claude Desktop (используйте ту же конфигурацию что и для Docker):
+
 ```json
 {
   "mcpServers": {
     "seq": {
-      "command": "/path/to/seq-mcp-server/publish/SeqMcp",
-      "env": {
-        "SEQ_URL": "http://localhost:5341",              // ОБЯЗАТЕЛЬНО: URL Seq сервера
-        "SEQ_API_KEY": "your-api-key",                   // ОПЦИОНАЛЬНО: API ключ Seq
-        "SEQ_PROJECT_SCOPE": "MyProject",                // ОПЦИОНАЛЬНО: фильтр по проекту
-        "SEQ_SCOPE_FIELD": "Application",                // ОПЦИОНАЛЬНО: поле для фильтрации (по умолчанию "Application")
-        "PORT": "5555"                                    // ОПЦИОНАЛЬНО: порт сервера (по умолчанию 5555)
-      }
+      "url": "http://localhost:5555/sse"    // URL вашего запущенного MCP сервера
     }
   }
 }
 ```
+
+**Примечание:** Сервер должен быть запущен ПЕРЕД стартом Claude Desktop. Если вы перезапустите сервер, перезапустите также Claude Desktop для переподключения.
 
 ## Структура проекта
 
