@@ -13,6 +13,7 @@ MCP (Model Context Protocol) сервер для Seq - позволяет LLM п
 - **Интеграция с Seq**: Нативная интеграция с Seq.Api 2025.2.2
 - **Scope Filtering**: Автоматическая фильтрация по проекту через HTTP заголовки/ENV
 - **Production-Ready HttpClient**: Оптимизированный Singleton с connection pooling
+- **Health Check Endpoint**: Мониторинг состояния сервера и Seq подключения
 - **Оптимизация токенов**: Краткие описания для экономии контекста LLM (экономия ~70% токенов)
 - **Русский язык**: Все описания и промпты на русском для удобства российских пользователей
 
@@ -115,6 +116,72 @@ Level = 'Error'
 Итоговый фильтр будет:
 ```
 (Application = 'MyProject') and (Level = 'Error')
+```
+
+### Health Check Endpoint
+
+Сервер предоставляет `/health` endpoint для мониторинга состояния и проверки доступности Seq сервера.
+
+**URL**: `GET http://localhost:5555/health`
+
+**Ответ при успешном состоянии (200 OK):**
+```json
+{
+  "status": "healthy",
+  "version": "1.0.0.0",
+  "uptimeSeconds": 3600,
+  "seqConnection": {
+    "isHealthy": true,
+    "message": "Connected to Seq server",
+    "responseTimeMs": 45
+  },
+  "metrics": {
+    "total_requests": 150,
+    "uptime_seconds": 3600,
+    "seq_response_time_ms": 45
+  }
+}
+```
+
+**Ответ при проблемах (503 Service Unavailable):**
+```json
+{
+  "status": "unhealthy",
+  "version": "1.0.0.0",
+  "uptimeSeconds": 3600,
+  "seqConnection": {
+    "isHealthy": false,
+    "message": "Connection failed: Connection refused",
+    "responseTimeMs": 1000
+  },
+  "metrics": {
+    "total_requests": 150,
+    "uptime_seconds": 3600,
+    "seq_response_time_ms": 1000
+  }
+}
+```
+
+**Метрики:**
+- `total_requests` - общее количество health check запросов с момента запуска
+- `uptime_seconds` - время работы сервера в секундах
+- `seq_response_time_ms` - время ответа Seq сервера в миллисекундах
+
+**Использование для мониторинга:**
+```bash
+# Проверка доступности
+curl http://localhost:5555/health
+
+# Kubernetes liveness probe
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 5555
+  initialDelaySeconds: 10
+  periodSeconds: 30
+
+# Prometheus monitoring
+http://localhost:5555/health
 ```
 
 ## 🚀 Быстрый старт
@@ -378,7 +445,10 @@ dotnet publish src/SeqMcp/SeqMcp.csproj -c Release -o ./publish
 - [x] ~~MCP Prompts (шаблоны запросов)~~
 - [x] ~~Scope filtering (фильтрация по проекту)~~
 - [x] ~~Production-ready HttpClient с connection pooling~~
+- [x] ~~Health Check endpoint~~
 - [ ] Docker контейнеризация
+- [ ] Дополнительные MCP Resources (last-hour, today, slow, stats)
+- [ ] Дополнительные MCP Tools (create_signal, tail_logs, get_apps, dashboards)
 - [ ] Интеграционные тесты с живым Seq сервером
 - [ ] CI/CD pipeline
 
@@ -408,9 +478,9 @@ dotnet test --filter "FullyQualifiedName~SeqToolsTests"
 
 ### Статистика тестов
 
-- **Всего тестов**: 27 unit тестов + 5 интеграционных тестов (требуют живой Seq сервер)
-- **Успешность тестов**: 100% (27/27 прошли)
-- **Новые тесты**: Scope filtering (7 тестов)
+- **Всего тестов**: 35 unit тестов + 5 интеграционных тестов (требуют живой Seq сервер)
+- **Успешность тестов**: 100% (35/35 прошли)
+- **Покрытие**: Scope filtering (7 тестов), Health Check (8 тестов)
 
 ## 🤝 Участие в разработке
 

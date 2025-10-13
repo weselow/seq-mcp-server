@@ -97,6 +97,7 @@ builder.Services.AddSingleton<HttpClient>(sp =>
 builder.Services.AddScoped<ISeqApiClient, SeqApiClient>();
 builder.Services.AddScoped<SeqTools>();
 builder.Services.AddScoped<SeqResources>();
+builder.Services.AddSingleton<IHealthCheckService, HealthCheckService>();
 
 // Register MCP server with HTTP transport, tools, resources, and prompts
 builder.Services.AddMcpServer()
@@ -162,6 +163,18 @@ app.Use(async (context, next) =>
         responseText);
 
     await responseBody.CopyToAsync(originalBody);
+});
+
+// Map Health Check endpoint
+app.MapGet("/health", async (IHealthCheckService healthCheckService) =>
+{
+    var health = await healthCheckService.GetHealthAsync();
+
+    var statusCode = health.Status == "healthy"
+        ? Results.Ok(health)
+        : Results.Json(health, statusCode: 503);
+
+    return statusCode;
 });
 
 // Map MCP endpoints
