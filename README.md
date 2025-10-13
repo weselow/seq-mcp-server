@@ -721,7 +721,7 @@ dotnet publish src/SeqMcp/SeqMcp.csproj -c Release -o ./publish
 - [x] ~~Docker контейнеризация (Dockerfile, docker-compose, .dockerignore)~~
 - [x] ~~Дополнительные MCP Resources (last-hour, today, slow, stats)~~
 - [x] ~~Дополнительные MCP Tools (create_signal, update_signal, delete_signal, get_apps)~~
-- [ ] Интеграционные тесты с живым Seq сервером
+- [x] ~~Интеграционные тесты с живым Seq сервером (13 integration тестов)~~
 - [ ] CI/CD pipeline (GitHub Actions)
 
 ## 📦 Зависимости
@@ -750,9 +750,24 @@ dotnet test --filter "FullyQualifiedName~SeqToolsTests"
 
 ### Статистика тестов
 
-- **Всего тестов**: 35 unit тестов + 5 интеграционных тестов (требуют живой Seq сервер)
-- **Успешность тестов**: 100% (35/35 прошли)
-- **Покрытие**: Scope filtering (7 тестов), Health Check (8 тестов)
+- **Unit тесты**: 35 тестов (всегда выполняются)
+- **Integration тесты**: 13 тестов (требуют Seq сервер, по умолчанию Skip)
+- **Всего**: 48 тестов
+- **Успешность**: 100% (35/35 unit тестов прошли)
+- **Покрытие**: Scope filtering (7), Health Check (8), Signal Management (9 integration)
+
+**Запуск интеграционных тестов:**
+```bash
+# 1. Запустить Seq через Docker
+docker run -d --name seq-test -e ACCEPT_EULA=Y -p 5341:80 datalust/seq
+
+# 2. Запустить тесты (integration тесты останутся Skip)
+dotnet test
+
+# 3. Для запуска integration тестов удалите атрибут Skip из тестов
+```
+
+Подробная документация: [docs/INTEGRATION_TESTS.md](docs/INTEGRATION_TESTS.md)
 
 ## 🤝 Участие в разработке
 
