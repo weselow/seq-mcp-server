@@ -93,6 +93,7 @@ curl http://localhost:5555/health
     "seq": {
       "url": "http://localhost:5555/sse",                     // ОБЯЗАТЕЛЬНО: URL MCP сервера
       "headers": {
+        "X-Seq-Api-Key": "your-api-key-if-needed",           // ОПЦИОНАЛЬНО: API ключ Seq (если требуется аутентификация)
         "X-Seq-Project-Scope": "MyWebApp",                    // ОПЦИОНАЛЬНО: фильтр по проекту (экономит токены!)
         "X-Seq-Scope-Field": "Application"                    // ОПЦИОНАЛЬНО: поле для фильтрации (по умолчанию "Application")
       }
@@ -108,6 +109,7 @@ curl http://localhost:5555/health
     "seq": {
       "url": "http://localhost:5555/sse",                     // ОБЯЗАТЕЛЬНО: URL MCP сервера
       "headers": {
+        "X-Seq-Api-Key": "your-api-key-if-needed",           // ОПЦИОНАЛЬНО: API ключ Seq (если требуется аутентификация)
         "X-Seq-Project-Scope": "MyWebApp",                    // ОПЦИОНАЛЬНО: фильтр по проекту (экономит токены!)
         "X-Seq-Scope-Field": "Application"                    // ОПЦИОНАЛЬНО: поле для фильтрации (по умолчанию "Application")
       }
@@ -199,18 +201,19 @@ export SEQ_SCOPE_FIELD="Application"              # Поле для фильтр
     "seq": {
       "url": "http://localhost:5555/sse",
       "headers": {
-        "X-Seq-Project-Scope": "MyWebApp",        // Фильтр по проекту - настройте под ваше приложение
-        "X-Seq-Scope-Field": "Application"
+        "X-Seq-Api-Key": "your-api-key-if-needed",           // ОПЦИОНАЛЬНО: API ключ Seq (если требуется аутентификация)
+        "X-Seq-Project-Scope": "MyWebApp",                    // ОПЦИОНАЛЬНО: фильтр по проекту - настройте под ваше приложение
+        "X-Seq-Scope-Field": "Application"                    // ОПЦИОНАЛЬНО: поле для фильтрации (по умолчанию "Application")
       }
     }
   }
 }
 ```
 
-**Преимущества фильтрации через headers:**
-- Не нужно перезапускать MCP сервер при изменении фильтра
-- Можно быстро переключаться между проектами, меняя только конфиг Claude Desktop
-- Фильтрация работает на уровне HTTP запросов
+**Преимущества конфигурации через headers:**
+- Не нужно перезапускать MCP сервер при изменении настроек
+- Можно быстро переключаться между проектами и API ключами, меняя только конфиг Claude Desktop
+- Все параметры (API ключ, фильтрация) передаются на уровне HTTP запросов
 
 **Примечание:** Сервер должен быть запущен ПЕРЕД стартом Claude Desktop. Если вы перезапустите сервер, перезапустите также Claude Desktop для переподключения.
 
@@ -267,7 +270,8 @@ export SEQ_SCOPE_FIELD="Application"             # По умолчанию: "App
 
 **Через HTTP заголовки:**
 ```bash
-curl -H "X-Seq-Project-Scope: MyProject" \
+curl -H "X-Seq-Api-Key: your-api-key" \
+     -H "X-Seq-Project-Scope: MyProject" \
      -H "X-Seq-Scope-Field: Application" \
      http://localhost:5555/mcp/v1
 ```
