@@ -53,4 +53,49 @@ public class SeqResources
         var result = await _seqClient.SearchEventsAsync("@Exception is not null", 50);
         return System.Text.Json.JsonSerializer.Serialize(result);
     }
+
+    [McpServerResource(UriTemplate = "seq://events/last-hour")]
+    [Description("События за последний час (все уровни)")]
+    public async Task<string> GetLastHourEvents()
+    {
+        var oneHourAgo = DateTime.UtcNow.AddHours(-1).ToString("yyyy-MM-ddTHH:mm:ss");
+        var filter = $"@Timestamp >= DateTime('{oneHourAgo}')";
+        var result = await _seqClient.SearchEventsAsync(filter, 100);
+        return System.Text.Json.JsonSerializer.Serialize(result);
+    }
+
+    [McpServerResource(UriTemplate = "seq://events/today")]
+    [Description("События за сегодня (все уровни)")]
+    public async Task<string> GetTodayEvents()
+    {
+        var todayStart = DateTime.UtcNow.Date.ToString("yyyy-MM-ddTHH:mm:ss");
+        var filter = $"@Timestamp >= DateTime('{todayStart}')";
+        var result = await _seqClient.SearchEventsAsync(filter, 200);
+        return System.Text.Json.JsonSerializer.Serialize(result);
+    }
+
+    [McpServerResource(UriTemplate = "seq://performance/slow")]
+    [Description("Медленные операции (Elapsed > 1000ms, последние 50)")]
+    public async Task<string> GetSlowPerformanceEvents()
+    {
+        var filter = "@Properties.Elapsed > 1000 or @Properties.ElapsedMilliseconds > 1000 or @Properties.Duration > 1000";
+        var result = await _seqClient.SearchEventsAsync(filter, 50);
+        return System.Text.Json.JsonSerializer.Serialize(result);
+    }
+
+    [McpServerResource(UriTemplate = "seq://stats/summary")]
+    [Description("Статистика событий за последний час по уровням")]
+    public async Task<string> GetEventsSummary()
+    {
+        var oneHourAgo = DateTime.UtcNow.AddHours(-1).ToString("yyyy-MM-ddTHH:mm:ss");
+        var sqlQuery = $@"
+            select Level, count(*) as Count
+            from stream
+            where @Timestamp >= DateTime('{oneHourAgo}')
+            group by Level
+            order by Count desc";
+
+        var result = await _seqClient.ExecuteSqlAsync(sqlQuery);
+        return System.Text.Json.JsonSerializer.Serialize(result);
+    }
 }

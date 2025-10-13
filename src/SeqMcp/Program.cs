@@ -202,7 +202,7 @@ foreach (var endpoint in endpoints)
 }
 
 app.Logger.LogInformation("MCP Tools: 3 (search, signals, sql)");
-app.Logger.LogInformation("MCP Resources: 5 (events, errors, warnings, signals, exceptions)");
+app.Logger.LogInformation("MCP Resources: 9 (events, errors, warnings, signals, exceptions, last-hour, today, slow, summary)");
 app.Logger.LogInformation("MCP Prompts: 8 (анализ ошибок, исключения, активность, безопасность и др.)");
 
 await app.RunAsync();

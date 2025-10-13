@@ -7,7 +7,7 @@ MCP (Model Context Protocol) сервер для Seq - позволяет LLM п
 ## ✨ Возможности
 
 - **3 MCP инструмента**: Поиск событий, список сигналов, SQL запросы
-- **5 MCP ресурсов**: Быстрый доступ к последним событиям (seq://)
+- **9 MCP ресурсов**: Быстрый доступ к последним событиям (seq://)
 - **8 MCP промптов**: Готовые шаблоны для анализа логов (на русском)
 - **HTTP Transport**: Server-Sent Events (SSE) по спецификации MCP 2025-03-26
 - **Интеграция с Seq**: Нативная интеграция с Seq.Api 2025.2.2
@@ -494,6 +494,18 @@ dotnet test --collect:"XPlat Code Coverage"
 ### 5. seq://signals
 Все сохранённые сигналы Seq
 
+### 6. seq://events/last-hour
+События за последний час (все уровни, до 100)
+
+### 7. seq://events/today
+События за сегодня (все уровни, до 200)
+
+### 8. seq://performance/slow
+Медленные операции с Elapsed > 1000ms (последние 50)
+
+### 9. seq://stats/summary
+Статистика событий за последний час по уровням (SQL агрегация)
+
 ## 💡 MCP промпты (шаблоны)
 
 Готовые промпты для типичных задач анализа логов (на русском):
@@ -614,7 +626,7 @@ dotnet publish src/SeqMcp/SeqMcp.csproj -c Release -o ./publish
 - [x] ~~Production-ready HttpClient с connection pooling~~
 - [x] ~~Health Check endpoint~~
 - [x] ~~Docker контейнеризация (Dockerfile, docker-compose, .dockerignore)~~
-- [ ] Дополнительные MCP Resources (last-hour, today, slow, stats)
+- [x] ~~Дополнительные MCP Resources (last-hour, today, slow, stats)~~
 - [ ] Дополнительные MCP Tools (create_signal, tail_logs, get_apps, dashboards)
 - [ ] Интеграционные тесты с живым Seq сервером
 - [ ] CI/CD pipeline (GitHub Actions)
@@ -669,4 +681,4 @@ MIT
 
 ---
 
-**Статус**: ✅ **Готов к production** - Полнофункциональный MCP сервер с 3 инструментами, 5 ресурсами, 8 промптами, HTTP транспортом, обработкой ошибок и полным тестированием
+**Статус**: ✅ **Готов к production** - Полнофункциональный MCP сервер с 3 инструментами, 9 ресурсами, 8 промптами, HTTP транспортом, обработкой ошибок и полным тестированием
