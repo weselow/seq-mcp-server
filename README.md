@@ -124,28 +124,7 @@ curl http://localhost:5555/health
 - После изменения конфигурации перезапустите Claude Desktop
 - Заголовки передаются в каждом HTTP запросе к MCP серверу
 
-### Полный пример с Docker Compose
-
-Запустить Seq и MCP сервер вместе:
-
-```bash
-# 1. Клонировать репозиторий
-git clone https://github.com/weselow/seq-mcp-server.git
-cd seq-mcp-server
-
-# 2. Запустить всё одной командой
-docker-compose up -d
-
-# 3. Проверить
-curl http://localhost:5555/health
-
-# Seq UI доступен: http://localhost:8080
-```
-
-В `docker-compose.yml` включено:
-- Seq сервер (порт 8080 UI, 5341 ingestion)
-- Seq MCP Server (порт 5555)
-- Health checks и автозависимости
+**Примечание:** Для запуска полного стека (Seq + MCP сервер) используйте Docker Compose - см. раздел [🐳 Docker](#-docker).
 
 ---
 
