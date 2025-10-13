@@ -68,3 +68,7 @@ msg.txt
 
 # Test results
 TestResults/
+
+# Docker environment variables
+.env
+!.env.example

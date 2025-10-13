@@ -188,8 +188,13 @@ http://localhost:5555/health
 
 ### Требования
 
+**Локальная разработка:**
 - .NET 9 SDK
 - Запущенный Seq сервер (локально или удалённо)
+
+**Docker (рекомендуется):**
+- Docker Desktop 20.10+
+- Docker Compose 2.0+
 
 ### Сборка
 
@@ -215,6 +220,168 @@ dotnet publish src/SeqMcp/SeqMcp.csproj -c Release -o ./publish
 ```
 
 Сервер запустится на `http://localhost:5555`
+
+## 🐳 Docker
+
+### Быстрый старт с Docker Compose (рекомендуется)
+
+Самый простой способ запустить Seq MCP Server вместе с Seq сервером:
+
+```bash
+# 1. Создайте .env файл (опционально)
+cp .env.example .env
+# Отредактируйте .env при необходимости
+
+# 2. Запустите оба сервиса
+docker-compose up -d
+
+# 3. Проверьте логи
+docker-compose logs -f seq-mcp
+
+# 4. Проверьте health check
+curl http://localhost:5555/health
+
+# 5. Откройте Seq UI
+http://localhost:8080
+```
+
+**Что включено:**
+- `seq` - Seq log server (порт 8080 UI, 5341 ingestion)
+- `seq-mcp` - Seq MCP Server (порт 5555)
+- Health checks для обоих сервисов
+- Автоматическая зависимость (MCP ждёт готовности Seq)
+- Persistent volume для данных Seq
+
+**Управление:**
+```bash
+# Остановить
+docker-compose down
+
+# Остановить и удалить данные
+docker-compose down -v
+
+# Перезапустить
+docker-compose restart seq-mcp
+
+# Посмотреть статус
+docker-compose ps
+```
+
+### Сборка Docker образа
+
+```bash
+# Собрать образ
+docker build -t seq-mcp-server:latest .
+
+# Запустить контейнер
+docker run -d \
+  --name seq-mcp \
+  -p 5555:5555 \
+  -e SEQ_URL=http://your-seq-server:80 \
+  -e SEQ_API_KEY=your-api-key \
+  seq-mcp-server:latest
+
+# Проверить логи
+docker logs -f seq-mcp
+
+# Проверить health check
+docker exec seq-mcp curl http://localhost:5555/health
+```
+
+### Переменные окружения Docker
+
+| Переменная | Описание | По умолчанию |
+|-----------|----------|--------------|
+| `SEQ_URL` | URL Seq сервера | `http://localhost:8080` |
+| `SEQ_API_KEY` | API ключ Seq (опционально) | - |
+| `SEQ_PROJECT_SCOPE` | Scope для фильтрации | - |
+| `SEQ_SCOPE_FIELD` | Поле для scope фильтрации | `Application` |
+| `PORT` | Порт MCP сервера | `5555` |
+| `ASPNETCORE_ENVIRONMENT` | Окружение ASP.NET Core | `Production` |
+
+### Docker в production
+
+**Docker Compose файл для production:**
+
+```yaml
+version: '3.8'
+
+services:
+  seq-mcp:
+    image: your-registry/seq-mcp-server:latest
+    container_name: seq-mcp-prod
+    ports:
+      - "5555:5555"
+    environment:
+      - SEQ_URL=http://your-seq-server:80
+      - SEQ_API_KEY=${SEQ_API_KEY}
+      - SEQ_PROJECT_SCOPE=ProductionApp
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5555/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+```
+
+**Kubernetes Deployment:**
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: seq-mcp-server
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: seq-mcp
+  template:
+    metadata:
+      labels:
+        app: seq-mcp
+    spec:
+      containers:
+      - name: seq-mcp
+        image: your-registry/seq-mcp-server:latest
+        ports:
+        - containerPort: 5555
+        env:
+        - name: SEQ_URL
+          value: "http://seq-service:80"
+        - name: SEQ_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: seq-credentials
+              key: api-key
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5555
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5555
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+```
 
 ### Тесты
 
@@ -446,11 +613,11 @@ dotnet publish src/SeqMcp/SeqMcp.csproj -c Release -o ./publish
 - [x] ~~Scope filtering (фильтрация по проекту)~~
 - [x] ~~Production-ready HttpClient с connection pooling~~
 - [x] ~~Health Check endpoint~~
-- [ ] Docker контейнеризация
+- [x] ~~Docker контейнеризация (Dockerfile, docker-compose, .dockerignore)~~
 - [ ] Дополнительные MCP Resources (last-hour, today, slow, stats)
 - [ ] Дополнительные MCP Tools (create_signal, tail_logs, get_apps, dashboards)
 - [ ] Интеграционные тесты с живым Seq сервером
-- [ ] CI/CD pipeline
+- [ ] CI/CD pipeline (GitHub Actions)
 
 ## 📦 Зависимости
 

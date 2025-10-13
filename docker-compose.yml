@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # Seq log server
+  seq:
+    image: datalust/seq:latest
+    container_name: seq-server
+    ports:
+      - "8080:80"        # Seq UI
+      - "5341:5341"      # Seq ingestion
+    environment:
+      - ACCEPT_EULA=Y
+    volumes:
+      - seq-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/api"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Seq MCP Server
+  seq-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: seq-mcp-server
+    ports:
+      - "5555:5555"      # MCP Server
+    environment:
+      - SEQ_URL=http://seq:80
+      - SEQ_API_KEY=${SEQ_API_KEY:-}
+      - SEQ_PROJECT_SCOPE=${SEQ_PROJECT_SCOPE:-}
+      - SEQ_SCOPE_FIELD=${SEQ_SCOPE_FIELD:-Application}
+      - PORT=5555
+      - ASPNETCORE_ENVIRONMENT=Production
+    depends_on:
+      seq:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5555/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  seq-data:
+    driver: local
