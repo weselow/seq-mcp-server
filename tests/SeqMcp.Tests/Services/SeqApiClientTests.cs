@@ -9,27 +9,39 @@ namespace SeqMcp.Tests.Services;
 public class SeqApiClientTests
 {
     private readonly SeqServerConfig _config;
+    private readonly HttpClient _httpClient;
 
     public SeqApiClientTests()
     {
         _config = new SeqServerConfig("http://localhost:5341", "test-api-key");
+        _httpClient = new HttpClient { BaseAddress = new Uri("http://localhost:5341") };
     }
 
     [Fact]
     public void Should_Create_Client_With_Valid_Config()
     {
         // Act
-        var client = new SeqApiClient(_config, NullLogger<SeqApiClient>.Instance);
+        var client = new SeqApiClient(_httpClient, _config, NullLogger<SeqApiClient>.Instance);
 
         // Assert
         client.Should().NotBeNull();
     }
 
     [Fact]
+    public void Should_Throw_When_HttpClient_Is_Null()
+    {
+        // Act
+        var act = () => new SeqApiClient(null!, _config, NullLogger<SeqApiClient>.Instance);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
     public void Should_Throw_When_Config_Is_Null()
     {
         // Act
-        var act = () => new SeqApiClient(null!, NullLogger<SeqApiClient>.Instance);
+        var act = () => new SeqApiClient(_httpClient, null!, NullLogger<SeqApiClient>.Instance);
 
         // Assert
         act.Should().Throw<ArgumentNullException>();
@@ -39,7 +51,7 @@ public class SeqApiClientTests
     public async Task Should_SearchEvents_Throw_When_Filter_Is_Null()
     {
         // Arrange
-        using var client = new SeqApiClient(_config, NullLogger<SeqApiClient>.Instance);
+        using var client = new SeqApiClient(_httpClient, _config, NullLogger<SeqApiClient>.Instance);
 
         // Act
         var act = async () => await client.SearchEventsAsync(null!, limit: 10);
@@ -52,7 +64,7 @@ public class SeqApiClientTests
     public async Task Should_SearchEvents_Throw_When_Limit_Is_Invalid()
     {
         // Arrange
-        using var client = new SeqApiClient(_config, NullLogger<SeqApiClient>.Instance);
+        using var client = new SeqApiClient(_httpClient, _config, NullLogger<SeqApiClient>.Instance);
 
         // Act
         var act = async () => await client.SearchEventsAsync("", limit: -1);

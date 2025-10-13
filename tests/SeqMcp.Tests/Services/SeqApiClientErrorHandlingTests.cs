@@ -12,9 +12,10 @@ public class SeqApiClientErrorHandlingTests
     {
         // Arrange
         var config = new SeqServerConfig("http://invalid-seq-server-12345.local", "test-api-key");
+        var httpClient = new HttpClient { BaseAddress = new Uri(config.ServerUrl) };
 
         // Act & Assert
-        var act = () => new SeqApiClient(config, NullLogger<SeqApiClient>.Instance);
+        var act = () => new SeqApiClient(httpClient, config, NullLogger<SeqApiClient>.Instance);
         act.Should().NotThrow("SeqApiClient constructor should not throw, connection is lazy");
     }
 
@@ -23,7 +24,8 @@ public class SeqApiClientErrorHandlingTests
     {
         // Arrange
         var config = new SeqServerConfig("http://localhost:5341", "invalid-api-key");
-        using var client = new SeqApiClient(config, NullLogger<SeqApiClient>.Instance);
+        var httpClient = new HttpClient { BaseAddress = new Uri(config.ServerUrl) };
+        using var client = new SeqApiClient(httpClient, config, NullLogger<SeqApiClient>.Instance);
 
         // Act
         var act = async () => await client.SearchEventsAsync("", 10);
@@ -37,7 +39,8 @@ public class SeqApiClientErrorHandlingTests
     {
         // Arrange
         var config = new SeqServerConfig("http://localhost:5341", "test-api-key");
-        using var client = new SeqApiClient(config, NullLogger<SeqApiClient>.Instance);
+        var httpClient = new HttpClient { BaseAddress = new Uri(config.ServerUrl) };
+        using var client = new SeqApiClient(httpClient, config, NullLogger<SeqApiClient>.Instance);
 
         // Act
         var result = await client.SearchEventsAsync("Level = 'NonExistentLevel'", 10);
@@ -54,7 +57,8 @@ public class SeqApiClientErrorHandlingTests
     {
         // Arrange
         var config = new SeqServerConfig("http://localhost:5341", "test-api-key");
-        using var client = new SeqApiClient(config, NullLogger<SeqApiClient>.Instance);
+        var httpClient = new HttpClient { BaseAddress = new Uri(config.ServerUrl) };
+        using var client = new SeqApiClient(httpClient, config, NullLogger<SeqApiClient>.Instance);
 
         // Act
         var act = async () => await client.SearchEventsAsync("", -1);
@@ -69,7 +73,8 @@ public class SeqApiClientErrorHandlingTests
     {
         // Arrange
         var config = new SeqServerConfig("http://localhost:5341", "test-api-key");
-        using var client = new SeqApiClient(config, NullLogger<SeqApiClient>.Instance);
+        var httpClient = new HttpClient { BaseAddress = new Uri(config.ServerUrl) };
+        using var client = new SeqApiClient(httpClient, config, NullLogger<SeqApiClient>.Instance);
 
         // Act
         var act = async () => await client.ExecuteSqlAsync("INVALID SQL SYNTAX HERE");

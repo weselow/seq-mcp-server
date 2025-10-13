@@ -15,9 +15,11 @@ public class SeqApiClient : ISeqApiClient
     private readonly ILogger<SeqApiClient> _logger;
 
     public SeqApiClient(
+        HttpClient httpClient,
         SeqServerConfig config,
         ILogger<SeqApiClient> logger)
     {
+        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -28,13 +30,6 @@ public class SeqApiClient : ISeqApiClient
         _connection = new SeqConnection(
             _config.ServerUrl,
             _config.ApiKey);
-
-        // Initialize HttpClient for direct HTTP requests
-        _httpClient = new HttpClient { BaseAddress = new Uri(_config.ServerUrl) };
-        if (!string.IsNullOrEmpty(_config.ApiKey))
-        {
-            _httpClient.DefaultRequestHeaders.Add("X-Seq-ApiKey", _config.ApiKey);
-        }
     }
 
     public async Task<SearchEventsResult> SearchEventsAsync(
@@ -235,6 +230,6 @@ public class SeqApiClient : ISeqApiClient
     public void Dispose()
     {
         _connection?.Dispose();
-        _httpClient?.Dispose();
+        // HttpClient is now a singleton managed by DI container, do not dispose
     }
 }

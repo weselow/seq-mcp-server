@@ -38,6 +38,54 @@ builder.WebHost.UseUrls(serverUrl);
 
 // Register Seq services
 builder.Services.AddSingleton(seqConfig);
+
+// Register optimized HttpClient as Singleton for Seq API
+builder.Services.AddSingleton<HttpClient>(sp =>
+{
+    var config = sp.GetRequiredService<SeqServerConfig>();
+
+    // Configure SocketsHttpHandler with production-optimized settings
+    var handler = new SocketsHttpHandler
+    {
+        // CONNECTION LIFETIME: 5 minutes - balance between performance and DNS updates
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+
+        // IDLE TIMEOUT: 2 minutes - close unused connections
+        PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
+
+        // CONNECTION LIMIT: 10 concurrent connections to Seq server
+        MaxConnectionsPerServer = 10,
+
+        // CONNECT TIMEOUT: 15 seconds - local Seq should connect quickly
+        ConnectTimeout = TimeSpan.FromSeconds(15),
+
+        // DRAIN TIMEOUT: 5 seconds - time to drain response before closing
+        ResponseDrainTimeout = TimeSpan.FromSeconds(5),
+
+        // PERFORMANCE: Disable unnecessary features
+        AllowAutoRedirect = false,  // Seq API doesn't use redirects
+        UseCookies = false,          // Seq uses API keys, not cookies
+
+        // COMPRESSION: Enable to reduce response sizes
+        AutomaticDecompression = System.Net.DecompressionMethods.GZip
+                               | System.Net.DecompressionMethods.Deflate
+    };
+
+    var client = new HttpClient(handler, disposeHandler: true)
+    {
+        // REQUEST TIMEOUT: 30 seconds - balance between fast queries and slow SQL
+        Timeout = TimeSpan.FromSeconds(30),
+        BaseAddress = new Uri(config.ServerUrl)
+    };
+
+    if (!string.IsNullOrEmpty(config.ApiKey))
+    {
+        client.DefaultRequestHeaders.Add("X-Seq-ApiKey", config.ApiKey);
+    }
+
+    return client;
+});
+
 builder.Services.AddScoped<ISeqApiClient, SeqApiClient>();
 builder.Services.AddScoped<SeqTools>();
 builder.Services.AddScoped<SeqResources>();
