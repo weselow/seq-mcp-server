@@ -11,6 +11,8 @@ MCP (Model Context Protocol) сервер для Seq - позволяет LLM п
 - **8 MCP промптов**: Готовые шаблоны для анализа логов (на русском)
 - **HTTP Transport**: Server-Sent Events (SSE) по спецификации MCP 2025-03-26
 - **Интеграция с Seq**: Нативная интеграция с Seq.Api 2025.2.2
+- **Scope Filtering**: Автоматическая фильтрация по проекту через HTTP заголовки/ENV
+- **Production-Ready HttpClient**: Оптимизированный Singleton с connection pooling
 - **Оптимизация токенов**: Краткие описания для экономии контекста LLM (экономия ~70% токенов)
 - **Русский язык**: Все описания и промпты на русском для удобства российских пользователей
 
@@ -29,13 +31,13 @@ MCP (Model Context Protocol) сервер для Seq - позволяет LLM п
 seq-mcp-server/
 ├── src/
 │   └── SeqMcp/
-│       ├── Configuration/      # Конфигурация сервера
-│       ├── Services/           # Обёртка для Seq API клиента
-│       ├── Tools/              # MCP инструменты
-│       ├── Resources/          # MCP ресурсы
-│       ├── Prompts/            # MCP промпты
-│       ├── Models/             # Модели данных
-│       └── Program.cs          # Точка входа
+│       ├── Configuration/      # Конфигурация (SeqServerConfig, SeqRequestContext)
+│       ├── Services/           # Обёртка для Seq API клиента (SeqApiClient)
+│       ├── Tools/              # MCP инструменты (SeqTools)
+│       ├── Resources/          # MCP ресурсы (SeqResources)
+│       ├── Prompts/            # MCP промпты (SeqPrompts)
+│       ├── Models/             # Модели данных (DTO)
+│       └── Program.cs          # Точка входа и DI конфигурация
 ├── tests/
 │   └── SeqMcp.Tests/           # Unit и интеграционные тесты
 └── docs/
@@ -53,10 +55,67 @@ export SEQ_SERVER_URL="http://localhost:8080"    # Альтернативное 
 export SEQ_API_KEY="your-api-key"                # Опционально, для Seq с аутентификацией
 
 # Порт MCP сервера
-export PORT="3001"                                # По умолчанию: 3001
+export PORT="5555"                                # По умолчанию: 5555
+
+# Фильтрация по проекту (опционально)
+export SEQ_PROJECT_SCOPE="MyProject"             # Опционально: фильтр по имени проекта
+export SEQ_SCOPE_FIELD="Application"             # По умолчанию: "Application"
 ```
 
 **Примечание:** Можно использовать либо `SEQ_URL`, либо `SEQ_SERVER_URL` - они взаимозаменяемы. Приоритет имеет `SEQ_URL`.
+
+### Фильтрация по проекту (Scope Filtering)
+
+Сервер поддерживает автоматическую фильтрацию событий по проекту/приложению. Это полезно когда несколько проектов логируют в один Seq сервер.
+
+**Приоритет конфигурации** (от высшего к низшему):
+1. **HTTP заголовки** (для HTTP MCP транспорта)
+2. **Переменные окружения** (`SEQ_PROJECT_SCOPE`, `SEQ_SCOPE_FIELD`)
+3. **appsettings.json** (`Seq:ProjectScope`, `Seq:ScopeField`)
+4. **Без фильтрации** (если ничего не задано)
+
+**Примеры использования:**
+
+**Через HTTP заголовки:**
+```bash
+curl -H "X-Seq-Project-Scope: MyProject" \
+     -H "X-Seq-Scope-Field: Application" \
+     http://localhost:5555/mcp/v1
+```
+
+**Через переменные окружения:**
+```bash
+export SEQ_PROJECT_SCOPE="MyProject"
+export SEQ_SCOPE_FIELD="Application"
+dotnet run
+```
+
+**Через appsettings.json:**
+```json
+{
+  "Seq": {
+    "Url": "http://localhost:8080",
+    "ApiKey": "your-api-key",
+    "ProjectScope": "MyProject",
+    "ScopeField": "Application"
+  }
+}
+```
+
+При включенной фильтрации, все запросы автоматически добавляют условие:
+```
+Application = 'MyProject'
+```
+
+Если пользователь добавляет свой фильтр:
+```
+Level = 'Error'
+```
+
+Итоговый фильтр будет:
+```
+(Application = 'MyProject') and (Level = 'Error')
+```
 
 ## 🚀 Быстрый старт
 
@@ -88,7 +147,7 @@ dotnet publish src/SeqMcp/SeqMcp.csproj -c Release -o ./publish
 ./publish/SeqMcp
 ```
 
-Сервер запустится на `http://localhost:3001`
+Сервер запустится на `http://localhost:5555`
 
 ### Тесты
 
@@ -261,7 +320,9 @@ dotnet publish src/SeqMcp/SeqMcp.csproj -c Release -o ./publish
       "command": "M:\\repos\\seq-mcp-server\\publish\\SeqMcp.exe",
       "env": {
         "SEQ_URL": "http://localhost:8080",
-        "SEQ_API_KEY": "ваш-api-ключ-если-нужен"
+        "SEQ_API_KEY": "ваш-api-ключ-если-нужен",
+        "SEQ_PROJECT_SCOPE": "MyProject",
+        "SEQ_SCOPE_FIELD": "Application"
       }
     }
   }
@@ -276,12 +337,18 @@ dotnet publish src/SeqMcp/SeqMcp.csproj -c Release -o ./publish
       "command": "/path/to/seq-mcp-server/publish/SeqMcp",
       "env": {
         "SEQ_URL": "http://localhost:8080",
-        "SEQ_API_KEY": "ваш-api-ключ-если-нужен"
+        "SEQ_API_KEY": "ваш-api-ключ-если-нужен",
+        "SEQ_PROJECT_SCOPE": "MyProject",
+        "SEQ_SCOPE_FIELD": "Application"
       }
     }
   }
 }
 ```
+
+**Примечания:**
+- `SEQ_PROJECT_SCOPE` и `SEQ_SCOPE_FIELD` опциональны - убрать если не нужна фильтрация
+- `SEQ_API_KEY` нужен только если Seq сервер требует аутентификацию
 
 **Альтернатива (разработка, медленнее):**
 ```json
@@ -309,6 +376,8 @@ dotnet publish src/SeqMcp/SeqMcp.csproj -c Release -o ./publish
 - [x] ~~Обработка ошибок с логированием~~
 - [x] ~~MCP Resources (seq://events, seq://signals)~~
 - [x] ~~MCP Prompts (шаблоны запросов)~~
+- [x] ~~Scope filtering (фильтрация по проекту)~~
+- [x] ~~Production-ready HttpClient с connection pooling~~
 - [ ] Docker контейнеризация
 - [ ] Интеграционные тесты с живым Seq сервером
 - [ ] CI/CD pipeline
@@ -339,10 +408,9 @@ dotnet test --filter "FullyQualifiedName~SeqToolsTests"
 
 ### Статистика тестов
 
-- **Всего тестов**: 19 unit тестов + 5 интеграционных тестов (требуют живой Seq сервер)
-- **Покрытие методов**: 94.4%
-- **Покрытие строк**: 41.9%
-- **Успешность тестов**: 100%
+- **Всего тестов**: 27 unit тестов + 5 интеграционных тестов (требуют живой Seq сервер)
+- **Успешность тестов**: 100% (27/27 прошли)
+- **Новые тесты**: Scope filtering (7 тестов)
 
 ## 🤝 Участие в разработке
 

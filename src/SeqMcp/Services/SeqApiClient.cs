@@ -13,15 +13,18 @@ public class SeqApiClient : ISeqApiClient
     private readonly HttpClient _httpClient;
     private readonly SeqServerConfig _config;
     private readonly ILogger<SeqApiClient> _logger;
+    private readonly SeqRequestContext? _requestContext;
 
     public SeqApiClient(
         HttpClient httpClient,
         SeqServerConfig config,
-        ILogger<SeqApiClient> logger)
+        ILogger<SeqApiClient> logger,
+        SeqRequestContext? requestContext = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _requestContext = requestContext; // Optional: null for tests
 
         _logger.LogInformation(
             "Initializing SeqApiClient for server: {ServerUrl}",
@@ -56,9 +59,12 @@ public class SeqApiClient : ISeqApiClient
 
         try
         {
+            // Build combined filter with scope filtering
+            var combinedFilter = BuildFilterWithScope(filter);
+
             _logger.LogInformation(
                 "Searching events with filter: '{Filter}', limit: {Limit}",
-                filter,
+                combinedFilter,
                 limit);
 
             // Use direct HTTP request to /api/events to avoid WebSocket requirement
@@ -68,9 +74,9 @@ public class SeqApiClient : ISeqApiClient
                 "render=true"
             };
 
-            if (!string.IsNullOrEmpty(filter))
+            if (!string.IsNullOrEmpty(combinedFilter))
             {
-                queryParams.Add($"filter={WebUtility.UrlEncode(filter)}");
+                queryParams.Add($"filter={WebUtility.UrlEncode(combinedFilter)}");
             }
 
             var url = $"/api/events?{string.Join("&", queryParams)}";
@@ -225,6 +231,42 @@ public class SeqApiClient : ISeqApiClient
                 "Unexpected error while executing SQL query");
             throw;
         }
+    }
+
+    /// <summary>
+    /// Builds combined filter with scope filtering.
+    /// Priority: HTTP header → ENV var → appsettings.json → none
+    /// </summary>
+    private string BuildFilterWithScope(string userFilter)
+    {
+        // Determine project scope: HTTP header → default config → null
+        var projectScope = _requestContext?.ProjectScope
+                          ?? _config.DefaultProjectScope;
+
+        // If no scope, return user filter as-is
+        if (string.IsNullOrWhiteSpace(projectScope))
+        {
+            return userFilter;
+        }
+
+        // Determine scope field: HTTP header → default config
+        var scopeField = _requestContext?.ScopeField
+                        ?? _config.DefaultScopeField;
+
+        // Build scope filter: ScopeField = 'ProjectScope'
+        var scopeFilter = $"{scopeField} = '{projectScope}'";
+
+        _logger.LogInformation(
+            "Applying scope filter: {ScopeFilter}",
+            scopeFilter);
+
+        // Combine with user filter
+        if (string.IsNullOrWhiteSpace(userFilter))
+        {
+            return scopeFilter;
+        }
+
+        return $"({scopeFilter}) and ({userFilter})";
     }
 
     public void Dispose()

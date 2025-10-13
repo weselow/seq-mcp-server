@@ -23,7 +23,14 @@ var seqUrl = builder.Configuration["Seq:Url"]
 var seqApiKey = builder.Configuration["Seq:ApiKey"]
     ?? Environment.GetEnvironmentVariable("SEQ_API_KEY");
 
-var seqConfig = new SeqServerConfig(seqUrl, seqApiKey);
+// Optional: Project scope filtering
+var defaultProjectScope = builder.Configuration["Seq:ProjectScope"]
+    ?? Environment.GetEnvironmentVariable("SEQ_PROJECT_SCOPE");
+
+var defaultScopeField = builder.Configuration["Seq:ScopeField"]
+    ?? Environment.GetEnvironmentVariable("SEQ_SCOPE_FIELD");
+
+var seqConfig = new SeqServerConfig(seqUrl, seqApiKey, defaultProjectScope, defaultScopeField);
 
 // Configure server port
 // Priority: appsettings.json > Environment Variable
@@ -38,6 +45,7 @@ builder.WebHost.UseUrls(serverUrl);
 
 // Register Seq services
 builder.Services.AddSingleton(seqConfig);
+builder.Services.AddScoped<SeqRequestContext>(); // Per-request context for HTTP headers
 
 // Register optimized HttpClient as Singleton for Seq API
 builder.Services.AddSingleton<HttpClient>(sp =>
@@ -98,6 +106,26 @@ builder.Services.AddMcpServer()
     .WithPrompts<SeqPrompts>();
 
 var app = builder.Build();
+
+// Extract Seq scope configuration from HTTP headers (if provided)
+app.Use(async (context, next) =>
+{
+    var requestContext = context.RequestServices.GetRequiredService<SeqRequestContext>();
+
+    // Extract X-Seq-Project-Scope header (optional)
+    if (context.Request.Headers.TryGetValue("X-Seq-Project-Scope", out var projectScope))
+    {
+        requestContext.ProjectScope = projectScope.ToString();
+    }
+
+    // Extract X-Seq-Scope-Field header (optional)
+    if (context.Request.Headers.TryGetValue("X-Seq-Scope-Field", out var scopeField))
+    {
+        requestContext.ScopeField = scopeField.ToString();
+    }
+
+    await next();
+});
 
 // Enable detailed request/response logging
 app.Use(async (context, next) =>

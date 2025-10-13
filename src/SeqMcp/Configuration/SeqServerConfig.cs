@@ -6,7 +6,23 @@ public class SeqServerConfig
     public string? ApiKey { get; }
     public int DefaultEventLimit { get; }
 
-    public SeqServerConfig(string serverUrl, string? apiKey = null)
+    /// <summary>
+    /// Default project scope for filtering events (optional).
+    /// Used as fallback when no HTTP header is provided.
+    /// </summary>
+    public string? DefaultProjectScope { get; }
+
+    /// <summary>
+    /// Field name to use for scope filtering (default: "Application").
+    /// Used as fallback when no HTTP header is provided.
+    /// </summary>
+    public string DefaultScopeField { get; }
+
+    public SeqServerConfig(
+        string serverUrl,
+        string? apiKey = null,
+        string? defaultProjectScope = null,
+        string? defaultScopeField = null)
     {
         if (string.IsNullOrWhiteSpace(serverUrl))
         {
@@ -18,5 +34,7 @@ public class SeqServerConfig
         ServerUrl = serverUrl;
         ApiKey = apiKey;
         DefaultEventLimit = 100;
+        DefaultProjectScope = defaultProjectScope;
+        DefaultScopeField = defaultScopeField ?? "Application"; // Default field name
     }
 }
