@@ -22,19 +22,21 @@ dotnet publish src/SeqMcp/SeqMcp.csproj -c Release -o ./publish
 ./publish/SeqMcp      # Linux/macOS
 ```
 
-**Claude Desktop configuration (Windows):**
+**Claude Desktop configuration (HTTP/SSE):**
 ```json
 {
   "mcpServers": {
     "seq": {
-      "command": "M:\\repos\\seq-mcp-server\\publish\\SeqMcp.exe",
-      "env": {
-        "SEQ_URL": "http://localhost:8080"
+      "url": "http://localhost:5555/sse",
+      "headers": {
+        "X-Seq-Project-Scope": "MyProject"
       }
     }
   }
 }
 ```
+
+**Note:** Server must be running BEFOREHAND. SEQ_URL and SEQ_API_KEY are passed via ENV when starting the server.
 
 ---
 
@@ -103,16 +105,27 @@ dotnet publish src/SeqMcp/SeqMcp.csproj -c Release -o ./publish
 
 ---
 
-## Docker (future)
+## Docker (✅ Implemented)
 
-Docker containerization is planned for even simpler deployment:
+Docker containerization is fully implemented:
 
 ```bash
-# Future command
-docker run -p 3001:3001 -e SEQ_URL=http://seq:5341 seq-mcp-server
+# Run with Docker
+docker run -d \
+  --name seq-mcp \
+  -p 5555:5555 \
+  -e SEQ_URL=http://your-seq-server:5341 \
+  -e SEQ_API_KEY=your-api-key-if-needed \
+  ghcr.io/weselow/seq-mcp-server:latest
 ```
 
-See [TODO/Roadmap](../README-EN.md#-todo--roadmap)
+**Or with Docker Compose:**
+
+```bash
+docker-compose up -d
+```
+
+See [README-EN.md - Docker section](../README-EN.md#-docker-deployment)
 
 ---
 

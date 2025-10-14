@@ -1,9 +1,9 @@
 # СТАНДАРТ TEST-DRIVEN DEVELOPMENT (TDD)
 
-> **Обязательный стандарт разработки через тестирование для DellShop B2B Platform**
+> **Обязательный стандарт разработки через тестирование для .NET проектов**
 
 **Версия**: 1.0
-**Дата**: 2025-09-28
+**Дата**: 2024-09-28
 **Статус**: ОБЯЗАТЕЛЬНЫЙ для всех модулей
 **Применение**: Все агенты implementation и разработка кода
 
@@ -26,12 +26,12 @@
 
 **НИКОГДА не изменяйте тесты для устранения ошибок компиляции - ВСЕГДА изменяйте код**
 
-```typescript
+```csharp
 // ❌ НЕПРАВИЛЬНО: Изменение теста под сломанный код
-expect(result.crop).toEqual({ x: 0, y: 0, width: 800, height: 600 })
+Assert.Equal(new { X = 0, Y = 0, Width = 800, Height = 600 }, result.Crop);
 
 // ✅ ПРАВИЛЬНО: Сохранить тест, исправить имплементацию
-expect(result.crop).toBe('fill')
+Assert.Equal("fill", result.Crop);
 ```
 
 ### ✅ ОБЯЗАТЕЛЬНО
@@ -47,31 +47,34 @@ expect(result.crop).toBe('fill')
 
 ```bash
 # ВСЕГДА создавать тест ДО имплементации
-touch backend/src/modules/[module]/__tests__/unit/[feature].test.ts
+# Создать файл теста в tests/[Project].Tests/[Feature]/[FeatureTest].cs
 
 # Запустить тест - он ДОЛЖЕН упасть
-npm test -- --testPathPattern=[test-file]
+dotnet test --filter "FullyQualifiedName~[TestClass]"
 # Убедиться что тест красный (провалился)
 ```
 
 **Пример создания падающего теста:**
-```typescript
-// backend/src/modules/quotes/__tests__/unit/quote-calculator.test.ts
-describe('QuoteCalculator', () => {
-  it('should calculate quote total with discounts', () => {
-    const calculator = new QuoteCalculator()
-    const items = [
-      { productId: 'prod-1', quantity: 2, unitPrice: 100 }
-    ]
-    const discount = 0.1 // 10%
+```csharp
+// tests/SeqMcp.Tests/Services/SeqApiClientTests.cs
+public class SeqApiClientTests
+{
+    [Fact]
+    public async Task SearchEventsAsync_ShouldReturnFilteredEvents()
+    {
+        // Arrange
+        var client = new SeqApiClient("http://localhost:5341");
+        var filter = "Level='Error'";
 
-    const result = calculator.calculateTotal(items, discount)
+        // Act
+        var result = await client.SearchEventsAsync(filter, limit: 10);
 
-    expect(result.subtotal).toBe(200)
-    expect(result.discount).toBe(20)
-    expect(result.total).toBe(180)
-  })
-})
+        // Assert
+        Assert.NotNull(result);
+        Assert.True(result.Count <= 10);
+        Assert.All(result, e => Assert.Equal("Error", e.Level));
+    }
+}
 ```
 
 ### **2. GREEN - Написать минимальный код для прохождения теста**
@@ -81,27 +84,33 @@ describe('QuoteCalculator', () => {
 # НИКОГДА не изменять expectations теста
 
 # Запустить тест - он ДОЛЖЕН пройти
-npm test -- --testPathPattern=[test-file]
+dotnet test --filter "FullyQualifiedName~[TestClass]"
 # Убедиться что все тесты зеленые
 ```
 
 **Пример минимальной имплементации:**
-```typescript
-// backend/src/modules/quotes/domain/services/quote-calculator.ts
-export class QuoteCalculator {
-  calculateTotal(items: QuoteItem[], discount: number): QuoteTotal {
-    const subtotal = items.reduce((sum, item) =>
-      sum + (item.quantity * item.unitPrice), 0
-    )
-    const discountAmount = subtotal * discount
-    const total = subtotal - discountAmount
+```csharp
+// src/SeqMcp/Services/SeqApiClient.cs
+public class SeqApiClient
+{
+    private readonly string _baseUrl;
+    private readonly HttpClient _httpClient;
 
-    return {
-      subtotal,
-      discount: discountAmount,
-      total
+    public SeqApiClient(string baseUrl)
+    {
+        _baseUrl = baseUrl;
+        _httpClient = new HttpClient();
     }
-  }
+
+    public async Task<List<SeqEvent>> SearchEventsAsync(string filter, int limit)
+    {
+        var url = $"{_baseUrl}/api/events/signal?filter={Uri.EscapeDataString(filter)}&count={limit}";
+        var response = await _httpClient.GetAsync(url);
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync();
+        return JsonSerializer.Deserialize<List<SeqEvent>>(json);
+    }
 }
 ```
 
@@ -110,29 +119,46 @@ export class QuoteCalculator {
 ```bash
 # Рефакторинг при зеленых тестах
 # Запускать тесты после каждого изменения
-npm test -- --testPathPattern=[test-file]
+dotnet test --filter "FullyQualifiedName~[TestClass]"
 ```
 
 **Пример рефакторинга:**
-```typescript
-export class QuoteCalculator {
-  calculateTotal(items: QuoteItem[], discount: number): QuoteTotal {
-    const subtotal = this.calculateSubtotal(items)
-    const discountAmount = this.calculateDiscount(subtotal, discount)
-    const total = subtotal - discountAmount
+```csharp
+public class SeqApiClient
+{
+    private readonly string _baseUrl;
+    private readonly HttpClient _httpClient;
 
-    return { subtotal, discount: discountAmount, total }
-  }
+    public SeqApiClient(string baseUrl)
+    {
+        _baseUrl = baseUrl;
+        _httpClient = new HttpClient();
+    }
 
-  private calculateSubtotal(items: QuoteItem[]): number {
-    return items.reduce((sum, item) =>
-      sum + (item.quantity * item.unitPrice), 0
-    )
-  }
+    public async Task<List<SeqEvent>> SearchEventsAsync(string filter, int limit)
+    {
+        var url = BuildSearchUrl(filter, limit);
+        var response = await ExecuteRequestAsync(url);
+        return await DeserializeEventsAsync(response);
+    }
 
-  private calculateDiscount(subtotal: number, rate: number): number {
-    return subtotal * rate
-  }
+    private string BuildSearchUrl(string filter, int limit)
+    {
+        return $"{_baseUrl}/api/events/signal?filter={Uri.EscapeDataString(filter)}&count={limit}";
+    }
+
+    private async Task<HttpResponseMessage> ExecuteRequestAsync(string url)
+    {
+        var response = await _httpClient.GetAsync(url);
+        response.EnsureSuccessStatusCode();
+        return response;
+    }
+
+    private async Task<List<SeqEvent>> DeserializeEventsAsync(HttpResponseMessage response)
+    {
+        var json = await response.Content.ReadAsStringAsync();
+        return JsonSerializer.Deserialize<List<SeqEvent>>(json);
+    }
 }
 ```
 
@@ -140,18 +166,22 @@ export class QuoteCalculator {
 
 ### 1. Изменение теста при ошибке компиляции
 
-```typescript
+```csharp
 // ❌ НЕПРАВИЛЬНО: Адаптация теста под код
-it('should handle crop configuration', () => {
-  const options = { crop: { x: 0, y: 0, width: 800, height: 600 } }
-  // Изменили тест, чтобы подогнать под существующий код
-})
+[Fact]
+public void HandleCropConfiguration_ShouldProcessObject()
+{
+    var options = new { Crop = new { X = 0, Y = 0, Width = 800, Height = 600 } };
+    // Изменили тест, чтобы подогнать под существующий код
+}
 
 // ✅ ПРАВИЛЬНО: Сохранить изначальные требования
-it('should handle crop configuration', () => {
-  const options = { crop: 'fill' }
-  // Сохранили изначальное требование, меняем код
-})
+[Fact]
+public void HandleCropConfiguration_ShouldProcessString()
+{
+    var options = new { Crop = "fill" };
+    // Сохранили изначальное требование, меняем код
+}
 ```
 
 ### 2. Написание кода без запуска тестов
@@ -165,9 +195,9 @@ it('should handle crop configuration', () => {
 
 # ✅ ПРАВИЛЬНО
 # Написать код
-npm test -- --testPathPattern=[test-file]
+dotnet test --filter "FullyQualifiedName~[TestClass]"
 # Написать еще код
-npm test -- --testPathPattern=[test-file]
+dotnet test --filter "FullyQualifiedName~[TestClass]"
 # После каждого изменения проверять
 ```
 
@@ -178,7 +208,7 @@ npm test -- --testPathPattern=[test-file]
 # Не запускать тесты
 
 # ✅ ПРАВИЛЬНО: Всегда проверять фактически
-npm test -- --testPathPattern=[test-file]
+dotnet test --filter "FullyQualifiedName~[TestClass]"
 # Убедиться визуально в результате
 ```
 
@@ -195,21 +225,29 @@ npm test -- --testPathPattern=[test-file]
 ### Пример правильного исправления:
 
 **Тест ожидает строковый crop:**
-```typescript
+```csharp
 // Тест (НЕ МЕНЯТЬ):
-const options = { crop: 'fill' }
-expect(transform(image, options).crop).toBe('fill')
-
-// Имплементация (ИСПРАВИТЬ):
-interface TransformOptions {
-  crop?: string | CropConfig  // Поддержать строку И объект
+[Fact]
+public void Transform_ShouldHandleStringCrop()
+{
+    var options = new TransformOptions { Crop = "fill" };
+    var result = Transform(image, options);
+    Assert.Equal("fill", result.Crop);
 }
 
-function normalizeCrop(crop: string | CropConfig): CropConfig {
-  if (typeof crop === 'string') {
-    return CROP_PRESETS[crop] // Конвертировать fill в config
-  }
-  return crop
+// Имплементация (ИСПРАВИТЬ):
+public class TransformOptions
+{
+    public object Crop { get; set; }  // Поддержать строку И объект
+}
+
+private CropConfig NormalizeCrop(object crop)
+{
+    if (crop is string cropString)
+    {
+        return CropPresets[cropString]; // Конвертировать fill в config
+    }
+    return crop as CropConfig;
 }
 ```
 
@@ -220,40 +258,57 @@ function normalizeCrop(crop: string | CropConfig): CropConfig {
 - **Покрытие**: >80% для критической бизнес-логики
 - **TDD**: ОБЯЗАТЕЛЕН
 
-```typescript
-// Unit тест для доменной сущности
-describe('Quote Entity', () => {
-  it('should calculate total price correctly', () => {
-    const quote = new Quote([
-      new QuoteItem('prod-1', 2, 100),
-      new QuoteItem('prod-2', 1, 50)
-    ])
+```csharp
+// Unit тест для сервиса
+public class SeqApiClientTests
+{
+    [Fact]
+    public async Task SearchEventsAsync_ShouldReturnFilteredEvents()
+    {
+        // Arrange
+        var client = new SeqApiClient("http://localhost:5341");
+        var filter = "Level='Error'";
 
-    expect(quote.getTotalPrice()).toBe(250)
-  })
-})
+        // Act
+        var events = await client.SearchEventsAsync(filter, limit: 10);
+
+        // Assert
+        Assert.NotNull(events);
+        Assert.True(events.Count <= 10);
+        Assert.All(events, e => Assert.Equal("Error", e.Level));
+    }
+}
 ```
 
 ### 2. Integration тесты (Infrastructure & Presentation слои)
 - **Назначение**: Тестирование взаимодействия компонентов
-- **Покрытие**: >60% для API endpoints и репозиториев
+- **Покрытие**: >60% для API endpoints и внешних сервисов
 - **TDD**: ОБЯЗАТЕЛЕН
 
-```typescript
+```csharp
 // Integration тест для API endpoint
-describe('POST /store/quotes', () => {
-  it('should create quote successfully', async () => {
-    const response = await request(app)
-      .post('/store/quotes')
-      .send({
-        customerId: 'customer-1',
-        items: [{ productId: 'prod-1', quantity: 2 }]
-      })
+public class SeqApiClientIntegrationTests
+{
+    [Fact(Skip = "Requires running Seq server")]
+    public async Task CreateSignal_ShouldSucceed()
+    {
+        // Arrange
+        var client = new SeqApiClient("http://localhost:5341");
+        var signal = new SignalRequest
+        {
+            Title = "Test Signal",
+            Filter = "Level='Error'"
+        };
 
-    expect(response.status).toBe(201)
-    expect(response.body.data.total).toBeDefined()
-  })
-})
+        // Act
+        var result = await client.CreateSignalAsync(signal);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.NotEmpty(result.Id);
+        Assert.Equal("Test Signal", result.Title);
+    }
+}
 ```
 
 ### 3. E2E тесты (Полные сценарии)
@@ -261,22 +316,36 @@ describe('POST /store/quotes', () => {
 - **Покрытие**: Основные business flows
 - **TDD**: Рекомендуется
 
-```typescript
+```csharp
 // E2E тест полного сценария
-describe('Quote Creation Flow', () => {
-  it('should create, calculate and convert quote to order', async () => {
-    // 1. Создать quote
-    const quote = await createQuote(customerId, items)
+public class SignalManagementFlowTests
+{
+    [Fact]
+    public async Task FullSignalLifecycle_ShouldSucceed()
+    {
+        var client = new SeqApiClient("http://localhost:5341");
 
-    // 2. Применить скидку
-    await applyDiscount(quote.id, discountCode)
+        // 1. Создать signal
+        var signal = await client.CreateSignalAsync(new SignalRequest
+        {
+            Title = "Critical Errors",
+            Filter = "Level='Error' AND Application='MyApp'"
+        });
 
-    // 3. Конвертировать в заказ
-    const order = await convertQuoteToOrder(quote.id)
+        // 2. Обновить signal
+        await client.UpdateSignalAsync(signal.Id, new SignalRequest
+        {
+            Title = "Critical Errors - Updated",
+            Filter = "Level='Error'"
+        });
 
-    expect(order.status).toBe('pending')
-  })
-})
+        // 3. Удалить signal
+        await client.DeleteSignalAsync(signal.Id);
+
+        // Assert
+        Assert.NotNull(signal);
+    }
+}
 ```
 
 ## 🎯 Обязательная проверка перед завершением задачи
@@ -284,27 +353,27 @@ describe('Quote Creation Flow', () => {
 **Каждая задача ДОЛЖНА пройти все проверки:**
 
 ```bash
-# 1. Специфичный тест модуля
-npm test -- --testPathPattern=[module]
+# 1. Специфичный тест модуля/класса
+dotnet test --filter "FullyQualifiedName~[ClassName]"
 
 # 2. Все тесты проекта
-npm test
+dotnet test
 
 # 3. Проверка покрытия (>60%)
-npm run test:coverage
+dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
 
-# 4. TypeScript компиляция
-npm run typecheck
+# 4. Компиляция проекта
+dotnet build --configuration Release
 
-# 5. Линтинг кода
-npm run lint
+# 5. Проверка форматирования
+dotnet format --verify-no-changes
 ```
 
 **Задача НЕ может быть завершена если:**
 - ❌ Тесты не проходят
 - ❌ Покрытие <60%
-- ❌ TypeScript ошибки существуют
-- ❌ Lint ошибки есть
+- ❌ Компиляция не проходит
+- ❌ Форматирование не соответствует
 - ❌ TDD цикл не был соблюден
 
 ## 📁 Структура тестов
@@ -312,77 +381,94 @@ npm run lint
 ### Обязательная организация тестов:
 
 ```
-backend/src/modules/[module]/__tests__/
-├── unit/                     # Unit тесты
-│   ├── domain/
-│   │   ├── entities/
-│   │   │   └── quote.entity.test.ts
-│   │   └── services/
-│   │       └── quote-calculator.test.ts
-│   ├── application/
-│   │   └── services/
-│   │       └── quote.service.test.ts
-│   └── shared/
-│       └── utils/
-│           └── validation.test.ts
-├── integration/              # Integration тесты
-│   ├── infrastructure/
-│   │   └── repositories/
-│   │       └── quote.repository.test.ts
-│   └── presentation/
-│       ├── controllers/
-│       │   └── quote.controller.test.ts
-│       └── routes/
-│           └── quotes.routes.test.ts
-└── __mocks__/               # Test Mocks
-    ├── quote.mock.ts
-    └── database.mock.ts
+tests/[Project].Tests/
+├── Services/                 # Unit тесты сервисов
+│   ├── SeqApiClientTests.cs
+│   ├── SeqApiClientSqlTests.cs
+│   └── SeqApiClientSignalsTests.cs
+├── Integration/              # Integration тесты
+│   ├── SeqApiClientIntegrationTests.cs
+│   └── SeqApiClientSignalManagementIntegrationTests.cs
+├── Controllers/              # Тесты контроллеров
+│   └── HealthControllerTests.cs
+├── Middleware/               # Тесты middleware
+│   └── ScopeHeaderMiddlewareTests.cs
+├── Helpers/                  # Test helpers
+│   └── SeqTestHelper.cs
+└── Fixtures/                 # Test fixtures
+    └── SeqFixture.cs
 ```
 
 ### Naming Conventions:
 
-- **Test files**: `[feature].test.ts`
-- **Mock files**: `[feature].mock.ts`
-- **Test suites**: `describe('[ClassName/FeatureName]')`
-- **Test cases**: `it('should [expected behavior]')`
+- **Test files**: `[ClassName]Tests.cs`
+- **Test classes**: `public class [ClassName]Tests`
+- **Test methods**: `public async Task MethodName_Scenario_ExpectedBehavior()`
+- **Integration tests**: `[ClassName]IntegrationTests.cs`
 
 ## 🔧 Test Utilities и Mocks
 
-### Создание качественных моков:
+### Создание качественных моков (с Moq):
 
-```typescript
-// __mocks__/quote.mock.ts
-export const mockQuoteRepository = {
-  findById: jest.fn(),
-  create: jest.fn(),
-  update: jest.fn(),
-  delete: jest.fn()
-}
+```csharp
+// tests/SeqMcp.Tests/Helpers/MockFactory.cs
+using Moq;
 
-export const mockQuoteData = {
-  id: 'quote-1',
-  customerId: 'customer-1',
-  items: [
-    { productId: 'prod-1', quantity: 2, unitPrice: 100 }
-  ],
-  totalPrice: 200,
-  status: 'draft'
+public static class MockFactory
+{
+    public static Mock<ISeqApiClient> CreateSeqApiClientMock()
+    {
+        var mock = new Mock<ISeqApiClient>();
+
+        mock.Setup(x => x.SearchEventsAsync(It.IsAny<string>(), It.IsAny<int>()))
+            .ReturnsAsync(new List<SeqEvent>
+            {
+                new SeqEvent { Level = "Error", Message = "Test error" }
+            });
+
+        return mock;
+    }
+
+    public static SeqEvent CreateTestEvent(string level = "Information")
+    {
+        return new SeqEvent
+        {
+            Id = Guid.NewGuid().ToString(),
+            Level = level,
+            Message = "Test message",
+            Timestamp = DateTime.UtcNow
+        };
+    }
 }
 ```
 
 ### Test Helper функции:
 
-```typescript
-// __tests__/helpers/test-helpers.ts
-export const createTestQuote = (overrides: Partial<Quote> = {}): Quote => {
-  return new Quote({
-    ...mockQuoteData,
-    ...overrides
-  })
-}
+```csharp
+// tests/SeqMcp.Tests/Helpers/SeqTestHelper.cs
+public static class SeqTestHelper
+{
+    public static async Task<bool> ShouldSkipIntegrationTest()
+    {
+        var seqUrl = Environment.GetEnvironmentVariable("SEQ_URL")
+                     ?? "http://localhost:5341";
 
-export const setupTestDatabase = async () => {
-  // Database setup for integration tests
+        try
+        {
+            using var client = new HttpClient();
+            var response = await client.GetAsync($"{seqUrl}/api");
+            return !response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return true; // Skip if Seq is not available
+        }
+    }
+
+    public static string GenerateUniqueSignalTitle()
+    {
+        return $"Test Signal {Guid.NewGuid().ToString("N")[..8]}";
+    }
 }
 ```
 
@@ -399,36 +485,39 @@ export const setupTestDatabase = async () => {
 
 ```bash
 # Детальный отчет по покрытию
-npm run test:coverage -- --verbose
+dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:CoverletOutput=./coverage/
 
 # Производительность тестов
-npm test -- --verbose --detectOpenHandles
+dotnet test --logger "console;verbosity=detailed"
 
-# Только измененные файлы
-npm test -- --onlyChanged
+# Только конкретный namespace
+dotnet test --filter "FullyQualifiedName~SeqMcp.Tests.Services"
 ```
 
 ## 🚀 TDD для различных слоев архитектуры
 
-### Domain Layer (строгий TDD):
-- Все entities и value objects
-- Domain services и бизнес-правила
-- Валидация доменных инвариантов
-
-### Application Layer (строгий TDD):
-- Use cases и application services
-- DTOs и их валидация
-- Coordination logic
-
-### Infrastructure Layer (TDD для логики):
-- Repository implementations
-- External service integrations
-- Complex data transformations
-
-### Presentation Layer (TDD для контроллеров):
-- Request/response handling
-- Validation logic
+### Services Layer (строгий TDD):
+- API client implementations (SeqApiClient)
+- Business logic services
+- Data transformations
 - Error handling
+
+### Controllers Layer (строгий TDD):
+- HTTP request/response handling
+- Route handlers
+- Input validation
+- Status code logic
+
+### Middleware Layer (TDD для логики):
+- Request/response processing
+- Header extraction
+- Scope filtering
+- Error handling
+
+### Models/DTOs (TDD при валидации):
+- Data validation logic
+- Transformation methods
+- Serialization/deserialization
 
 ## 📝 Чек-лист TDD соответствия
 
@@ -440,10 +529,10 @@ npm test -- --onlyChanged
 - [ ] ✅ Покрытие тестами >60%
 - [ ] ✅ Тесты документируют поведение системы
 - [ ] ✅ Нет изменений тестов для исправления компиляции
-- [ ] ✅ TypeScript компилируется без ошибок
-- [ ] ✅ Lint проверки проходят
+- [ ] ✅ C# компилируется без ошибок
+- [ ] ✅ Форматирование проходит (dotnet format)
 - [ ] ✅ Integration тесты покрывают API endpoints
-- [ ] ✅ Моки созданы для внешних зависимостей
+- [ ] ✅ Моки созданы для внешних зависимостей (Moq)
 
 ---
 

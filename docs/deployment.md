@@ -22,19 +22,21 @@ dotnet publish src/SeqMcp/SeqMcp.csproj -c Release -o ./publish
 ./publish/SeqMcp      # Linux/macOS
 ```
 
-**Конфигурация Claude Desktop (Windows):**
+**Конфигурация Claude Desktop (HTTP/SSE):**
 ```json
 {
   "mcpServers": {
     "seq": {
-      "command": "M:\\repos\\seq-mcp-server\\publish\\SeqMcp.exe",
-      "env": {
-        "SEQ_URL": "http://localhost:8080"
+      "url": "http://localhost:5555/sse",
+      "headers": {
+        "X-Seq-Project-Scope": "MyProject"
       }
     }
   }
 }
 ```
+
+**Примечание:** Сервер должен быть запущен ЗАРАНЕЕ. Переменные SEQ_URL и SEQ_API_KEY передаются через ENV при запуске сервера.
 
 ---
 
@@ -103,16 +105,27 @@ dotnet publish src/SeqMcp/SeqMcp.csproj -c Release -o ./publish
 
 ---
 
-## Docker (будущее)
+## Docker (✅ Реализовано)
 
-Планируется добавить Docker контейнеризацию для ещё более простого развёртывания:
+Docker контейнеризация полностью реализована:
 
 ```bash
-# Будущая команда
-docker run -p 3001:3001 -e SEQ_URL=http://seq:5341 seq-mcp-server
+# Запуск с Docker
+docker run -d \
+  --name seq-mcp \
+  -p 5555:5555 \
+  -e SEQ_URL=http://your-seq-server:5341 \
+  -e SEQ_API_KEY=your-api-key-if-needed \
+  ghcr.io/weselow/seq-mcp-server:latest
 ```
 
-См. [TODO/Roadmap](../README.md#-todo--дорожная-карта)
+**Или с Docker Compose:**
+
+```bash
+docker-compose up -d
+```
+
+См. [README.md - Docker section](../README.md#-docker-deployment)
 
 ---
 
