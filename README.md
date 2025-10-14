@@ -9,6 +9,7 @@ MCP (Model Context Protocol) сервер для Seq - позволяет LLM п
 ![CI](https://github.com/weselow/seq-mcp-server/workflows/CI/badge.svg)
 ![Docker Build](https://github.com/weselow/seq-mcp-server/workflows/Docker%20Build%20and%20Push/badge.svg)
 ![Security](https://github.com/weselow/seq-mcp-server/workflows/Security%20and%20Code%20Quality/badge.svg)
+![CodeQL](https://github.com/weselow/seq-mcp-server/workflows/CodeQL/badge.svg)
 
 ## ✨ Возможности
 
