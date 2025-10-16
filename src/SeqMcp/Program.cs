@@ -15,13 +15,13 @@ builder.Logging.SetMinimumLevel(LogLevel.Information);
 
 // Configure Seq settings
 // Priority: appsettings.json > Environment Variables
-var seqUrl = builder.Configuration["Seq:Url"]
-    ?? Environment.GetEnvironmentVariable("SEQ_URL")
-    ?? Environment.GetEnvironmentVariable("SEQ_SERVER_URL")
-    ?? "http://localhost:8080";
+var seqUrl = Environment.GetEnvironmentVariable("SEQ_URL")
+             ?? Environment.GetEnvironmentVariable("SEQ_SERVER_URL") 
+             ?? builder.Configuration["Seq:Url"]
+             ?? "http://localhost:8080";
 
-var seqApiKey = builder.Configuration["Seq:ApiKey"]
-    ?? Environment.GetEnvironmentVariable("SEQ_API_KEY");
+var seqApiKey = Environment.GetEnvironmentVariable("SEQ_API_KEY") 
+    ?? builder.Configuration["Seq:ApiKey"]; 
 
 // Optional: Project scope filtering
 var defaultProjectScope = builder.Configuration["Seq:ProjectScope"]
