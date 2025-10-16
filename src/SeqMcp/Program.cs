@@ -38,7 +38,8 @@ var serverPort = builder.Configuration["McpServer:Port"]
     ?? Environment.GetEnvironmentVariable("PORT")
     ?? "5555";
 
-var serverUrl = $"http://localhost:{serverPort}";
+// Bind to 0.0.0.0 to accept external connections (required for Docker)
+var serverUrl = $"http://0.0.0.0:{serverPort}";
 
 // Configure server URLs (MUST be before Build())
 builder.WebHost.UseUrls(serverUrl);

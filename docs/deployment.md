@@ -114,7 +114,7 @@ Docker контейнеризация полностью реализована:
 docker run -d \
   --name seq-mcp \
   -p 5555:5555 \
-  -e SEQ_URL=http://your-seq-server:5341 \
+  -e SEQ_URL=http://your-seq-server:8080 \
   -e SEQ_API_KEY=your-api-key-if-needed \
   ghcr.io/weselow/seq-mcp-server:latest
 ```

@@ -90,7 +90,7 @@ docker pull ghcr.io/YOUR_USERNAME/seq-mcp-server:latest
 
 # Run container
 docker run -d \
-  -e SEQ_URL=http://seq-server:5341 \
+  -e SEQ_URL=http://seq-server:8080 \
   -e SEQ_API_KEY=your-api-key \
   -p 5555:5555 \
   ghcr.io/YOUR_USERNAME/seq-mcp-server:latest
@@ -174,7 +174,7 @@ Configure in workflow files or repository secrets:
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `SEQ_URL` | Seq server URL | http://localhost:5341 | Yes |
+| `SEQ_URL` | Seq server URL | http://localhost:8080 | Yes |
 | `SEQ_API_KEY` | Seq API key | - | No |
 | `PORT` | Server port | 5555 | No |
 | `ASPNETCORE_ENVIRONMENT` | ASP.NET environment | Production | No |
@@ -273,7 +273,7 @@ docker build -t seq-mcp-server:local .
 # Run container
 docker run -d \
   --name seq-mcp-test \
-  -e SEQ_URL=http://host.docker.internal:5341 \
+  -e SEQ_URL=http://host.docker.internal:8080 \
   -p 5555:5555 \
   seq-mcp-server:local
 

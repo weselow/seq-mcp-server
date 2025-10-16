@@ -15,10 +15,10 @@
 ### SEQ_URL или SEQ_SERVER_URL
 URL адрес Seq сервера.
 
-**По умолчанию:** `http://localhost:5341`
+**По умолчанию:** `http://localhost:8080`
 
 ```bash
-export SEQ_URL="http://localhost:5341"
+export SEQ_URL="http://localhost:8080"
 # или
 export SEQ_SERVER_URL="http://seq.example.com"
 ```
@@ -58,7 +58,7 @@ export PORT="5555"
     "Port": 5555
   },
   "Seq": {
-    "Url": "http://localhost:5341",
+    "Url": "http://localhost:8080",
     "ApiKey": ""
   }
 }
@@ -113,13 +113,13 @@ cd /path/to/seq-mcp-server/publish
 
 ```bash
 # Windows (PowerShell)
-$env:SEQ_URL="http://localhost:5341"
+$env:SEQ_URL="http://localhost:8080"
 $env:SEQ_API_KEY="your-key"
 $env:PORT="5555"
 .\SeqMcp.exe
 
 # Linux/macOS
-SEQ_URL="http://localhost:5341" SEQ_API_KEY="your-key" PORT="5555" ./SeqMcp
+SEQ_URL="http://localhost:8080" SEQ_API_KEY="your-key" PORT="5555" ./SeqMcp
 ```
 
 **Шаг 2: Настроить `.mcp.json`**
@@ -179,7 +179,7 @@ SEQ_URL="http://localhost:5341" SEQ_API_KEY="your-key" PORT="5555" ./SeqMcp
     "Port": 5556  // Другой порт для dev
   },
   "Seq": {
-    "Url": "http://localhost:5341",  // Локальный Seq
+    "Url": "http://localhost:8080",  // Локальный Seq
     "ApiKey": ""
   }
 }
@@ -202,7 +202,7 @@ info: SeqMcp[0]
 info: SeqMcp[0]
       Server URL: http://localhost:5555
 info: SeqMcp[0]
-      Seq URL: http://localhost:5341
+      Seq URL: http://localhost:8080
 info: SeqMcp[0]
       Transport: HTTP/SSE
 ```
@@ -228,8 +228,8 @@ info: SeqMcp[0]
 **Причина:** Неправильный Seq URL или API ключ.
 
 **Решение:**
-1. Проверьте Seq URL в логах: `Seq URL: http://localhost:5341`
-2. Проверьте доступность Seq: `curl http://localhost:5341/api`
+1. Проверьте Seq URL в логах: `Seq URL: http://localhost:8080`
+2. Проверьте доступность Seq: `curl http://localhost:8080/api`
 3. Если Seq требует аутентификацию, добавьте API ключ в `appsettings.json` или переменную `SEQ_API_KEY`
 
 ### Проблема: Порт уже используется

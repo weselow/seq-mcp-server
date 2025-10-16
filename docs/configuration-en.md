@@ -15,10 +15,10 @@ The server supports **3 configuration sources** with priority (from highest to l
 ### SEQ_URL or SEQ_SERVER_URL
 Seq server URL address.
 
-**Default:** `http://localhost:5341`
+**Default:** `http://localhost:8080`
 
 ```bash
-export SEQ_URL="http://localhost:5341"
+export SEQ_URL="http://localhost:8080"
 # or
 export SEQ_SERVER_URL="http://seq.example.com"
 ```
@@ -58,7 +58,7 @@ Configuration file is located at `src/SeqMcp/appsettings.json`:
     "Port": 5555
   },
   "Seq": {
-    "Url": "http://localhost:5341",
+    "Url": "http://localhost:8080",
     "ApiKey": ""
   }
 }
@@ -113,13 +113,13 @@ Or with environment variables:
 
 ```bash
 # Windows (PowerShell)
-$env:SEQ_URL="http://localhost:5341"
+$env:SEQ_URL="http://localhost:8080"
 $env:SEQ_API_KEY="your-key"
 $env:PORT="5555"
 .\SeqMcp.exe
 
 # Linux/macOS
-SEQ_URL="http://localhost:5341" SEQ_API_KEY="your-key" PORT="5555" ./SeqMcp
+SEQ_URL="http://localhost:8080" SEQ_API_KEY="your-key" PORT="5555" ./SeqMcp
 ```
 
 **Step 2: Configure Claude Desktop**
@@ -156,7 +156,7 @@ Create `src/SeqMcp/appsettings.Development.json` for development settings:
     "Port": 5556  // Different port for dev
   },
   "Seq": {
-    "Url": "http://localhost:5341",  // Local Seq
+    "Url": "http://localhost:8080",  // Local Seq
     "ApiKey": ""
   }
 }
@@ -179,7 +179,7 @@ info: SeqMcp[0]
 info: SeqMcp[0]
       Server URL: http://localhost:5555
 info: SeqMcp[0]
-      Seq URL: http://localhost:5341
+      Seq URL: http://localhost:8080
 info: SeqMcp[0]
       Transport: HTTP/SSE
 ```
@@ -205,8 +205,8 @@ Verify that:
 **Cause:** Incorrect Seq URL or API key.
 
 **Solution:**
-1. Check Seq URL in logs: `Seq URL: http://localhost:5341`
-2. Verify Seq accessibility: `curl http://localhost:5341/api`
+1. Check Seq URL in logs: `Seq URL: http://localhost:8080`
+2. Verify Seq accessibility: `curl http://localhost:8080/api`
 3. If Seq requires authentication, add API key in `appsettings.json` or `SEQ_API_KEY` variable
 
 ### Problem: Port already in use
