@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "seq_mcp_server",
+  "project_id": "195f1635-c176-4405-b557-bf14f2b132e7"
+}
