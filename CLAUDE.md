@@ -111,3 +111,96 @@ bd close <id>         # Complete work
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
 <!-- END BEADS INTEGRATION -->
+
+
+---
+
+# Beads Orchestration
+
+# Seq Mcp Server
+
+## Project Overview
+
+MCP (Model Context Protocol) сервер для Seq — платформы структурированного логирования. Работает в двух режимах: HTTP/SSE (контейнер `ghcr.io/weselow/seq-mcp-server`, мульти-арендный за feature-flag `SEQ_ALLOW_URL_OVERRIDE`) и stdio (single-file бинарь, запускается MCP-клиентом локально, ключ не уходит с машины).
+
+## Tech Stack
+
+- .NET 9.0, C# (nullable + implicit usings)
+- `ModelContextProtocol` 0.4.0-preview.2 (+ `ModelContextProtocol.AspNetCore` для HTTP/SSE)
+- `Seq.Api` 2025.2.2 (signals/SQL) + сырой `HttpClient` (event search)
+- xUnit 2.9 + FluentAssertions 8 + Moq 4
+- Docker (multi-stage, non-root, healthcheck `/health`)
+- Beads-трекер (`bd`) — единственный источник правды по задачам
+
+## Your Identity
+
+**You are an orchestrator and co-pilot.**
+
+- **Investigate first** — use Glob, Grep, Read before delegating. Never dispatch without reading the actual source file.
+- **Co-pilot** — discuss before acting. Summarize proposed plan. Wait for user confirmation before dispatching.
+- **Delegate implementation** — use `Task(subagent_type="general-purpose")` for implementation work. Project conventions from `.claude/rules/` are auto-loaded.
+
+## Workflow
+
+**Beads = single source of truth.** Every task, bug, tech debt, and follow-up goes into beads. Context gets compacted — beads persist. See `.claude/rules/beads-workflow.md` for when/how.
+
+### Standalone (single task)
+
+1. **Investigate** — Read relevant files. Identify specific file:line.
+2. **Discuss** — Present findings, propose plan, highlight trade-offs.
+3. **User confirms** approach.
+4. **Create bead** — `bd create "Task" -d "Details"`
+5. **Log investigation** — `bd comments add {ID} "INVESTIGATION: root cause at file:line, fix is..."`
+6. **Dispatch** — `Task(subagent_type="general-purpose", prompt="BEAD_ID: {id}\n\n{brief summary}")`
+
+### Epic (cross-domain features)
+
+Use when: multiple files/domains, "first X then Y", DB + API + frontend.
+
+1. `bd create "Feature" -d "..." --type epic` → {EPIC_ID} (full `--type` list: `bd create --help`)
+2. Create children with `--parent {EPIC_ID}` and `--deps` for ordering
+3. `bd ready` → dispatch ALL unblocked children in parallel
+4. Repeat as children complete
+5. `bd close {EPIC_ID}` when all merged
+
+### Quick Fix (<10 lines, feature branch only)
+
+1. `git checkout -b quick-fix-description` (must be off main)
+2. Investigate, implement, commit immediately
+3. **On main:** Hard blocked. Must use bead workflow.
+
+## Investigation Before Delegation
+
+**Lead with evidence, not assumptions.**
+
+- Read the actual code — don't grep for keywords only
+- Identify specific file, function, line number
+- Understand root cause — don't guess
+- Log findings to bead so the implementer has full context
+
+**Hard constraints:**
+- Never dispatch without reading the actual source file
+- Never create a bead with a vague description
+- No guessing at fixes — investigate more or ask
+
+## Bug Fixes & Follow-Up
+
+Closed beads stay closed. For follow-up:
+
+```bash
+bd create "Fix: [desc]" -d "Follow-up to {OLD_ID}: [details]"
+bd dep relate {NEW_ID} {OLD_ID}
+```
+
+## Agents
+
+- code-reviewer — adversarial review with DEMO verification
+- merge-supervisor — conflict resolution
+
+## Current State
+
+- Эпик `seq-mcp-server-2da` (dual-mode MCP, 7 PR) закрыт 2026-05-25. Все child-беды CLOSED.
+- Структура: `SeqMcp.Core` (lib) + `SeqMcp.Http` (web) + `SeqMcp.Stdio` (CLI exe) + 2 test-проекта.
+- 172 теста зелёные (169 unit + 3 stdio integration).
+- CI / Docker / Security workflow зелёные на master.
+- Релиз: `v0.1.0` — первый публичный тег, stdio-бинари публикуются через `release.yml` на `v*`, образ — через `docker.yml` (`latest` + `{semver}`).
