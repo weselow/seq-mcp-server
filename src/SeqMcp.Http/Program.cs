@@ -1,13 +1,11 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using ModelContextProtocol.Server;
 using SeqMcp.Core.Configuration;
 using SeqMcp.Core.Hosting;
-using SeqMcp.Http.Middleware;
+using SeqMcp.Core.Resources;
 using SeqMcp.Core.Services;
 using SeqMcp.Core.Tools;
-using SeqMcp.Core.Resources;
-using SeqMcp.Core.Prompts;
+using SeqMcp.Http.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,9 +46,7 @@ builder.Services.AddSingleton<IHealthCheckService, HealthCheckService>();
 // Register MCP server with HTTP transport, tools, resources, and prompts
 builder.Services.AddMcpServer()
     .WithHttpTransport()
-    .WithTools<SeqTools>()
-    .WithResources<SeqResources>()
-    .WithPrompts<SeqPrompts>();
+    .AddSeqMcpPrimitives();
 
 var app = builder.Build();
 
