@@ -82,6 +82,10 @@ curl http://localhost:5555/health
 
 После запуска MCP сервера (Docker или локально), добавьте его в конфигурацию Claude Desktop:
 
+> **MCP endpoints HTTP-режима** (зависит от поддержки клиента):
+> - `GET http://localhost:5555/sse` — Legacy SSE transport, его понимает Claude Desktop и другие классические MCP-клиенты. Используется в примерах ниже.
+> - `POST http://localhost:5555/` — Streamable HTTP transport (MCP spec 2025-03-26) для новых клиентов.
+
 **Минимальная конфигурация:**
 ```json
 {
@@ -267,9 +271,11 @@ export SEQ_BLOCK_PRIVATE_HOSTS="true"            # По умолчанию: fals
 
 **Через HTTP заголовки:**
 ```bash
+# MCP endpoint: POST / (Streamable HTTP) или GET /sse (Legacy SSE)
 curl -H "X-Seq-Project-Scope: MyProject" \
      -H "X-Seq-Scope-Field: Application" \
-     http://localhost:5555/mcp/v1
+     -H "Accept: text/event-stream" \
+     http://localhost:5555/sse
 ```
 
 **Через переменные окружения:**
@@ -328,10 +334,12 @@ export SEQ_BLOCK_PRIVATE_HOSTS=true
 **Пример HTTP-запроса:**
 
 ```bash
-curl -X POST http://localhost:5555/mcp/v1 \
+# POST на корень / — это Streamable HTTP transport (MCP 2025-03-26)
+curl -X POST http://localhost:5555/ \
   -H "X-Seq-Url: https://tenant-a.seq.example.com" \
   -H "X-Seq-ApiKey: per-tenant-api-key" \
   -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
   --data '{...MCP-запрос...}'
 ```
 

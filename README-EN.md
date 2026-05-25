@@ -82,6 +82,10 @@ With filtering by `Application = 'MyWebApp'` you will only get logs from your pr
 
 After starting the MCP server (Docker or locally), add it to Claude Desktop configuration:
 
+> **HTTP-mode MCP endpoints** (pick what your client supports):
+> - `GET http://localhost:5555/sse` — Legacy SSE transport, understood by Claude Desktop and other classic MCP clients. Used in the examples below.
+> - `POST http://localhost:5555/` — Streamable HTTP transport (MCP spec 2025-03-26) for newer clients.
+
 **Minimal configuration:**
 ```json
 {
@@ -267,9 +271,11 @@ The server supports automatic event filtering by project/application. This is us
 
 **Via HTTP headers:**
 ```bash
+# MCP endpoint: POST / (Streamable HTTP) or GET /sse (Legacy SSE)
 curl -H "X-Seq-Project-Scope: MyProject" \
      -H "X-Seq-Scope-Field: Application" \
-     http://localhost:5555/mcp/v1
+     -H "Accept: text/event-stream" \
+     http://localhost:5555/sse
 ```
 
 **Via environment variables:**
@@ -328,10 +334,12 @@ export SEQ_BLOCK_PRIVATE_HOSTS=true
 **Example HTTP request:**
 
 ```bash
-curl -X POST http://localhost:5555/mcp \
+# POST to root / is the Streamable HTTP transport (MCP 2025-03-26)
+curl -X POST http://localhost:5555/ \
   -H "X-Seq-Url: https://tenant-a.seq.example.com" \
   -H "X-Seq-ApiKey: per-tenant-api-key" \
   -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
   --data '{...MCP request...}'
 ```
 
