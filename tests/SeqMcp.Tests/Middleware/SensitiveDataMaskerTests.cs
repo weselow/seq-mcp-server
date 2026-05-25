@@ -1,5 +1,5 @@
 using FluentAssertions;
-using SeqMcp.Middleware;
+using SeqMcp.Http.Middleware;
 
 namespace SeqMcp.Tests.Middleware;
 

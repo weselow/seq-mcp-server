@@ -1,6 +1,6 @@
 using FluentAssertions;
-using SeqMcp.Services;
-using SeqMcp.Configuration;
+using SeqMcp.Core.Services;
+using SeqMcp.Core.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace SeqMcp.Tests.Services;
@@ -27,7 +27,7 @@ public class SeqApiClientSignalsTests
 
         // Assert
         method.Should().NotBeNull("ListSignalsAsync method should exist");
-        method!.ReturnType.Should().Be(typeof(Task<SeqMcp.Models.ListSignalsResult>));
+        method!.ReturnType.Should().Be(typeof(Task<SeqMcp.Core.Models.ListSignalsResult>));
     }
 
     [Fact(Skip = "Requires running Seq server")]

@@ -1,7 +1,7 @@
 using FluentAssertions;
 using Moq;
-using SeqMcp.Services;
-using SeqMcp.Configuration;
+using SeqMcp.Core.Services;
+using SeqMcp.Core.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace SeqMcp.Tests.Services;
