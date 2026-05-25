@@ -77,3 +77,10 @@ TestResults/
 .dolt/
 *.db
 .beads-credential-key
+
+# Beads orchestration
+.worktrees/
+.claude/.upgrades/
+
+# Beads auto-export artifact at repo root (the canonical store lives in .beads/)
+/issues.jsonl

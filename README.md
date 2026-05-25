@@ -143,11 +143,11 @@ curl http://localhost:5555/health
 
 **Шаг 1: Сборка и публикация**
 ```bash
-# Сборка
+# Сборка всего решения
 dotnet build
 
-# Публикация
-dotnet publish src/SeqMcp/SeqMcp.csproj -c Release -o ./publish
+# Публикация HTTP-сервера
+dotnet publish src/SeqMcp.Http/SeqMcp.Http.csproj -c Release -o ./publish
 ```
 
 **Шаг 2: Запуск MCP сервера**
@@ -159,7 +159,7 @@ dotnet publish src/SeqMcp/SeqMcp.csproj -c Release -o ./publish
 # Минимальная конфигурация (только обязательные параметры)
 $env:SEQ_URL="http://localhost:5341"              # ОБЯЗАТЕЛЬНО: URL Seq сервера
 $env:SEQ_API_KEY="your-api-key"                   # ОПЦИОНАЛЬНО: API ключ (если Seq требует аутентификацию)
-.\publish\SeqMcp.exe
+dotnet .\publish\SeqMcp.Http.dll
 ```
 
 **Linux/macOS:**
@@ -167,7 +167,7 @@ $env:SEQ_API_KEY="your-api-key"                   # ОПЦИОНАЛЬНО: API 
 # Минимальная конфигурация (только обязательные параметры)
 export SEQ_URL="http://localhost:5341"            # ОБЯЗАТЕЛЬНО: URL Seq сервера
 export SEQ_API_KEY="your-api-key"                 # ОПЦИОНАЛЬНО: API ключ (если Seq требует аутентификацию)
-./publish/SeqMcp
+dotnet ./publish/SeqMcp.Http.dll
 ```
 
 **Дополнительные переменные окружения (опционально):**
@@ -207,18 +207,26 @@ export SEQ_SCOPE_FIELD="Application"              # Поле для фильтр
 ```
 seq-mcp-server/
 ├── src/
-│   └── SeqMcp/
-│       ├── Configuration/      # Конфигурация (SeqServerConfig, SeqRequestContext)
-│       ├── Services/           # Обёртка для Seq API клиента (SeqApiClient)
-│       ├── Tools/              # MCP инструменты (SeqTools)
-│       ├── Resources/          # MCP ресурсы (SeqResources)
-│       ├── Prompts/            # MCP промпты (SeqPrompts)
-│       ├── Models/             # Модели данных (DTO)
-│       └── Program.cs          # Точка входа и DI конфигурация
+│   ├── SeqMcp.Core/                # Общая библиотека
+│   │   ├── Configuration/          # SeqOptions, SeqRequestContext, SeqOptionsLoader
+│   │   ├── Hosting/                # Расширения DI для MCP-примитивов
+│   │   ├── Services/               # SeqApiClient, SeqConnectionFactory, HealthCheckService
+│   │   ├── Tools/                  # MCP инструменты (SeqTools)
+│   │   ├── Resources/              # MCP ресурсы (SeqResources)
+│   │   ├── Prompts/                # MCP промпты (SeqPrompts)
+│   │   └── Models/                 # Модели данных (DTO)
+│   ├── SeqMcp.Http/                # ASP.NET Core веб-приложение (Docker)
+│   │   ├── Middleware/             # SeqHeadersMiddleware, RequestLoggingMiddleware
+│   │   ├── Program.cs              # Точка входа HTTP-сервера, DI, /health
+│   │   └── appsettings.json
+│   └── SeqMcp.Stdio/               # Single-file CLI exe (stdio JSON-RPC)
+│       ├── Program.cs              # Точка входа stdio-сервера
+│       └── SeqMcp.Stdio.csproj
 ├── tests/
-│   └── SeqMcp.Tests/           # Unit и интеграционные тесты
+│   ├── SeqMcp.Tests/                       # Unit-тесты Core и Http
+│   └── SeqMcp.Stdio.IntegrationTests/      # Интеграционные тесты stdio через Process.Start
 └── docs/
-    └── standards/              # Стандарты разработки
+    └── standards/                          # Стандарты разработки
 ```
 
 ## ⚙️ Конфигурация
@@ -933,11 +941,9 @@ dotnet test --filter "FullyQualifiedName~SeqToolsTests"
 
 ### Статистика тестов
 
-- **Unit тесты**: 35 тестов (всегда выполняются)
-- **Integration тесты**: 13 тестов (требуют Seq сервер, по умолчанию Skip)
-- **Всего**: 48 тестов
-- **Успешность**: 100% (35/35 unit тестов прошли)
-- **Покрытие**: Scope filtering (7), Health Check (8), Signal Management (9 integration)
+- **Unit тесты** (`SeqMcp.Tests`): ~180 тестов (всегда выполняются; включают `Skip`-помеченные интеграционные тесты, требующие живого Seq)
+- **Stdio integration тесты** (`SeqMcp.Stdio.IntegrationTests`): 4 теста, поднимающие реальный stdio-процесс через `Process.Start` и проверяющие JSON-RPC handshake
+- **Покрытие**: Scope filtering, Health Check, Signal Management, multi-tenancy (override URL/ApiKey), SSRF-фильтр, stdio handshake
 
 **Запуск интеграционных тестов:**
 ```bash

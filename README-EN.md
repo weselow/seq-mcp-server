@@ -12,27 +12,36 @@ Model Context Protocol (MCP) server for Seq - enabling LLM applications to inter
 
 ## ✨ Features
 
+- **Two run modes**: HTTP/SSE server (Docker) for teams and stdio CLI (single-file exe) for individual use with MCP clients
 - **7 MCP Tools**: Event search, signal management, SQL queries, applications list
 - **9 MCP Resources**: Quick access to latest events (seq://)
 - **8 MCP Prompts**: Ready-made templates for log analysis (in Russian)
 - **HTTP Transport**: Server-Sent Events (SSE) per MCP 2025-03-26 specification
+- **Multi-tenancy** (HTTP): one server serving multiple Seq targets via `X-Seq-Url`/`X-Seq-ApiKey` headers (off by default, SSRF protection when enabled)
 - **Seq Integration**: Native integration with Seq.Api 2025.2.2
 - **Scope Filtering**: Automatic filtering by project via HTTP headers/ENV
-- **Production-Ready HttpClient**: Optimized Singleton with connection pooling
 - **Health Check Endpoint**: Server and Seq connection monitoring
 - **Token Optimization**: Concise descriptions for LLM context economy (~70% token savings)
 - **Russian Language**: All descriptions and prompts in Russian for convenience of Russian users
 
 ## 🏗️ Architecture
 
-- **Language**: C# / .NET 9 (ASP.NET Core)
-- **Protocol**: MCP 2025-03-26 (Streamable HTTP/SSE)
-- **Testing**: xUnit with 94.4% method coverage, 41.9% line coverage
-- **Design**: Clean Architecture with strict TDD approach
-- **DI**: Microsoft.Extensions.DependencyInjection
-- **Logging**: ILogger with structured logging
+- **Language**: C# / .NET 9
+- **Protocol**: MCP 2025-03-26 (HTTP/SSE for Docker, stdio JSON-RPC for exe)
+- **Project layout**:
+  - `src/SeqMcp.Core` — shared library (Models, Services, Tools, Resources, Prompts)
+  - `src/SeqMcp.Http` — ASP.NET Core web app (Docker target)
+  - `src/SeqMcp.Stdio` — single-file CLI exe for local use
+- **DI**: single `ISeqConnectionFactory` (Singleton) with per-tenant `HttpClient`+`SeqConnection`, LRU cache, lease/refcount for safe eviction
+- **Testing**: xUnit, ~180 unit tests + integration via `Process.Start` for stdio
+- **Logging**: ILogger with structured logging (in stdio — strictly to stderr; stdout is reserved for JSON-RPC)
 
 ## 🚀 Quick Start
+
+Two ways to run the server:
+
+- **Docker (HTTP/SSE server)** — recommended for teams, remote clients, shared deployments. See below.
+- **Stdio exe** — single-file binary; the MCP client launches the process itself. The API key never leaves the user's machine. See the [🧷 Stdio mode](#-stdio-mode-local-exe) section.
 
 ### Running in Docker (recommended)
 
@@ -134,11 +143,11 @@ After starting the MCP server (Docker or locally), add it to Claude Desktop conf
 
 **Step 1: Build and Publish**
 ```bash
-# Build
+# Build the whole solution
 dotnet build
 
-# Publish
-dotnet publish src/SeqMcp/SeqMcp.csproj -c Release -o ./publish
+# Publish the HTTP server
+dotnet publish src/SeqMcp.Http/SeqMcp.Http.csproj -c Release -o ./publish
 ```
 
 **Step 2: Start MCP Server**
@@ -150,7 +159,7 @@ Start the server in a separate terminal:
 # Minimal configuration (required parameters only)
 $env:SEQ_URL="http://localhost:5341"              # REQUIRED: Seq server URL
 $env:SEQ_API_KEY="your-api-key"                   # OPTIONAL: API key (if Seq requires authentication)
-.\publish\SeqMcp.exe
+dotnet .\publish\SeqMcp.Http.dll
 ```
 
 **Linux/macOS:**
@@ -158,7 +167,7 @@ $env:SEQ_API_KEY="your-api-key"                   # OPTIONAL: API key (if Seq re
 # Minimal configuration (required parameters only)
 export SEQ_URL="http://localhost:5341"            # REQUIRED: Seq server URL
 export SEQ_API_KEY="your-api-key"                 # OPTIONAL: API key (if Seq requires authentication)
-./publish/SeqMcp
+dotnet ./publish/SeqMcp.Http.dll
 ```
 
 **Additional environment variables (optional):**
@@ -198,18 +207,26 @@ After starting the server, add it to Claude Desktop configuration. **It is recom
 ```
 seq-mcp-server/
 ├── src/
-│   └── SeqMcp/
-│       ├── Configuration/      # Configuration (SeqServerConfig, SeqRequestContext)
-│       ├── Services/           # Seq API client wrapper (SeqApiClient)
-│       ├── Tools/              # MCP tools (SeqTools)
-│       ├── Resources/          # MCP resources (SeqResources)
-│       ├── Prompts/            # MCP prompts (SeqPrompts)
-│       ├── Models/             # Data models (DTO)
-│       └── Program.cs          # Entry point and DI configuration
+│   ├── SeqMcp.Core/                # Shared library
+│   │   ├── Configuration/          # SeqOptions, SeqRequestContext, SeqOptionsLoader
+│   │   ├── Hosting/                # DI extensions for MCP primitives
+│   │   ├── Services/               # SeqApiClient, SeqConnectionFactory, HealthCheckService
+│   │   ├── Tools/                  # MCP tools (SeqTools)
+│   │   ├── Resources/              # MCP resources (SeqResources)
+│   │   ├── Prompts/                # MCP prompts (SeqPrompts)
+│   │   └── Models/                 # Data models (DTO)
+│   ├── SeqMcp.Http/                # ASP.NET Core web app (Docker target)
+│   │   ├── Middleware/             # SeqHeadersMiddleware, RequestLoggingMiddleware
+│   │   ├── Program.cs              # HTTP server entry point, DI, /health
+│   │   └── appsettings.json
+│   └── SeqMcp.Stdio/               # Single-file CLI exe (stdio JSON-RPC)
+│       ├── Program.cs              # Stdio server entry point
+│       └── SeqMcp.Stdio.csproj
 ├── tests/
-│   └── SeqMcp.Tests/           # Unit and integration tests
+│   ├── SeqMcp.Tests/                       # Unit tests for Core and Http
+│   └── SeqMcp.Stdio.IntegrationTests/      # Stdio integration tests via Process.Start
 └── docs/
-    └── standards/              # Development standards
+    └── standards/                          # Development standards
 ```
 
 ## ⚙️ Configuration
@@ -228,6 +245,10 @@ export PORT="5555"                                # Default: 5555
 # Project filtering (optional)
 export SEQ_PROJECT_SCOPE="MyProject"             # Optional: filter by project name
 export SEQ_SCOPE_FIELD="Application"             # Default: "Application"
+
+# Multi-tenancy via HTTP headers (optional, see "Multi-tenancy" section)
+export SEQ_ALLOW_URL_OVERRIDE="true"             # Default: false. Allows X-Seq-Url header from request
+export SEQ_BLOCK_PRIVATE_HOSTS="true"            # Default: false. Recommended for public deployments
 ```
 
 **Note:** You can use either `SEQ_URL` or `SEQ_SERVER_URL` - they are interchangeable. `SEQ_URL` takes priority.
@@ -284,6 +305,60 @@ The final filter will be:
 ```
 (Application = 'MyProject') and (Level = 'Error')
 ```
+
+### Multi-tenancy (HTTP mode)
+
+By default the HTTP server talks to a single Seq instance defined in configuration (`SEQ_URL` / `SEQ_API_KEY`). To let one MCP server serve multiple tenants with different Seq instances, an optional header-based override mode is available:
+
+| Header                | Purpose                                        | Requires flag                         |
+|-----------------------|------------------------------------------------|---------------------------------------|
+| `X-Seq-Url`           | Seq URL for the current request                | `SEQ_ALLOW_URL_OVERRIDE=true`         |
+| `X-Seq-ApiKey`        | Seq API key for the current request            | always accepted                       |
+| `X-Seq-Project-Scope` | Project scope filter (see above)               | always accepted                       |
+| `X-Seq-Scope-Field`   | Scope filter field (see above)                 | always accepted                       |
+
+**Enabling override mode:**
+
+```bash
+export SEQ_ALLOW_URL_OVERRIDE=true
+# optional — paranoid mode (see below)
+export SEQ_BLOCK_PRIVATE_HOSTS=true
+```
+
+**Example HTTP request:**
+
+```bash
+curl -X POST http://localhost:5555/mcp \
+  -H "X-Seq-Url: https://tenant-a.seq.example.com" \
+  -H "X-Seq-ApiKey: per-tenant-api-key" \
+  -H "Content-Type: application/json" \
+  --data '{...MCP request...}'
+```
+
+If `SEQ_ALLOW_URL_OVERRIDE` is unset or `false`, the `X-Seq-Url` header is silently ignored and a one-time warning is logged (without the header value). `X-Seq-ApiKey` is always accepted and never logged.
+
+**SSRF protection.** When the URL comes from a header, a TCP-connect-level filter is enabled for the outgoing connection:
+
+- loopback (`127.0.0.0/8`, `::1`) — always blocked;
+- link-local (`169.254.0.0/16` including AWS IMDS `169.254.169.254`, `fe80::/10`) — always blocked;
+- RFC1918 (`10/8`, `172.16/12`, `192.168/16`) — blocked only when `SEQ_BLOCK_PRIVATE_HOSTS=true`.
+
+DNS resolution happens on every connection, which closes DNS-rebinding: even if a domain initially resolves to a public IP and then to loopback, the second connect still validates the resolved IP.
+
+URL validation at middleware level (before the connection factory):
+
+- scheme must be `http` or `https`;
+- no credentials in the URL (`user:pass@host`);
+- no fragment (`#...`);
+- no null bytes or control chars (CR/LF — anti-injection);
+- invalid URL → `400 Bad Request` (the header value is not echoed in the response body).
+
+**Multi-tenancy deployment requirements:**
+
+- Do **not** expose the MCP HTTP server publicly without authentication. Use a reverse proxy (Nginx, Caddy, Traefik) with TLS and client authentication (mTLS, OAuth2, API gateway).
+- Enable **rate limiting** on the `/mcp` endpoint at the reverse proxy — a client carrying `X-Seq-Url` can try to scan the internal network.
+- For public deployments enable `SEQ_BLOCK_PRIVATE_HOSTS=true` so RFC1918 addresses (internal network) are also blocked.
+- `X-Seq-ApiKey` must never be logged: an API key is a password-equivalent secret.
 
 ### Health Check Endpoint
 
@@ -522,6 +597,45 @@ dotnet test
 # Run with coverage
 dotnet test --collect:"XPlat Code Coverage"
 ```
+
+## 🧷 Stdio mode (local exe)
+
+In addition to the HTTP/SSE server, the project can be built as a standalone exe with stdio transport — the MCP client launches the process itself and communicates over stdin/stdout. Convenient for local use with Claude Desktop, Cline and other MCP clients: one process = one Seq, the API key never leaves the user's machine.
+
+### Build
+
+```bash
+# Windows
+dotnet publish src/SeqMcp.Stdio/SeqMcp.Stdio.csproj -c Release -r win-x64 -p:PublishSingleFile=true
+
+# Linux
+dotnet publish src/SeqMcp.Stdio/SeqMcp.Stdio.csproj -c Release -r linux-x64 -p:PublishSingleFile=true
+
+# macOS
+dotnet publish src/SeqMcp.Stdio/SeqMcp.Stdio.csproj -c Release -r osx-x64 -p:PublishSingleFile=true
+```
+
+The result is a single self-contained exe in `src/SeqMcp.Stdio/bin/Release/net9.0/<rid>/publish/`.
+
+### MCP client configuration
+
+Example for Claude Desktop (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "seq": {
+      "command": "/path/to/SeqMcp.Stdio.exe",
+      "env": {
+        "SEQ_URL": "http://localhost:5341",
+        "SEQ_API_KEY": "your-api-key-if-needed"
+      }
+    }
+  }
+}
+```
+
+Stdio server logs go to stderr (stdout is reserved for JSON-RPC), so they show up in the MCP client logs and don't corrupt the protocol.
 
 ## Development
 
@@ -775,8 +889,8 @@ Claude Desktop configuration is described in the [🚀 Quick Start](#-quick-star
 
 **Two connection methods:**
 
-1. **Docker (recommended)** - run container and specify `"url": "http://localhost:5555/sse"` in config
-2. **Without Docker** - publish project and specify `"url"` with server address in config
+1. **Docker / HTTP server** — run container or `dotnet ./publish/SeqMcp.Http.dll` and specify `"url": "http://localhost:5555/sse"` in config
+2. **Stdio exe** — publish `SeqMcp.Stdio` as a single-file exe and specify `"command": "/path/to/SeqMcp.Stdio.exe"` in config (see [🧷 Stdio mode](#-stdio-mode-local-exe))
 
 See detailed configuration examples for Windows/Linux/macOS in the "Quick Start" section.
 
@@ -827,11 +941,9 @@ dotnet test --filter "FullyQualifiedName~SeqToolsTests"
 
 ### Test Statistics
 
-- **Unit tests**: 35 tests (always run)
-- **Integration tests**: 13 tests (require Seq server, Skip by default)
-- **Total**: 48 tests
-- **Success rate**: 100% (35/35 unit tests passed)
-- **Coverage**: Scope filtering (7), Health Check (8), Signal Management (9 integration)
+- **Unit tests** (`SeqMcp.Tests`): ~180 tests (always run; includes `Skip`-marked integration tests that require a live Seq)
+- **Stdio integration tests** (`SeqMcp.Stdio.IntegrationTests`): 4 tests that spin up a real stdio process via `Process.Start` and verify the JSON-RPC handshake
+- **Coverage**: Scope filtering, Health Check, Signal Management, multi-tenancy (URL/ApiKey override), SSRF filter, stdio handshake
 
 **Running integration tests:**
 ```bash
