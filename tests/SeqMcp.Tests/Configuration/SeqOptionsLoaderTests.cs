@@ -27,6 +27,7 @@ public class SeqOptionsLoaderTests
         "SEQ_PROJECT_SCOPE",
         "SEQ_SCOPE_FIELD",
         "SEQ_BLOCK_PRIVATE_HOSTS",
+        "SEQ_ALLOW_URL_OVERRIDE",
         "Seq__Url",
     };
 
@@ -391,5 +392,101 @@ public class SeqOptionsLoaderTests
 
         // Assert
         options.BlockPrivateHosts.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Should_Default_AllowUrlOverride_To_False()
+    {
+        // Arrange
+        using var env = new EnvScope(new Dictionary<string, string?>());
+        var config = BuildConfig();
+
+        // Act
+        var options = SeqOptionsLoader.Load(config);
+
+        // Assert
+        options.AllowUrlOverride.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("true")]
+    [InlineData("True")]
+    [InlineData("TRUE")]
+    [InlineData("1")]
+    [InlineData("yes")]
+    [InlineData("YES")]
+    public void Should_Read_AllowUrlOverride_From_Env_Truthy(string raw)
+    {
+        // Arrange
+        using var env = new EnvScope(new Dictionary<string, string?>
+        {
+            ["SEQ_ALLOW_URL_OVERRIDE"] = raw,
+        });
+        var config = BuildConfig();
+
+        // Act
+        var options = SeqOptionsLoader.Load(config);
+
+        // Assert
+        options.AllowUrlOverride.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("false")]
+    [InlineData("0")]
+    [InlineData("no")]
+    [InlineData("anything-else")]
+    [InlineData("  ")]
+    public void Should_Read_AllowUrlOverride_From_Env_Falsy(string raw)
+    {
+        // Arrange
+        using var env = new EnvScope(new Dictionary<string, string?>
+        {
+            ["SEQ_ALLOW_URL_OVERRIDE"] = raw,
+        });
+        var config = BuildConfig();
+
+        // Act
+        var options = SeqOptionsLoader.Load(config);
+
+        // Assert
+        options.AllowUrlOverride.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Should_Read_AllowUrlOverride_From_AppSettings_When_No_Env()
+    {
+        // Arrange
+        using var env = new EnvScope(new Dictionary<string, string?>());
+        var config = BuildConfig(new Dictionary<string, string?>
+        {
+            ["Seq:AllowUrlOverride"] = "true",
+        });
+
+        // Act
+        var options = SeqOptionsLoader.Load(config);
+
+        // Assert
+        options.AllowUrlOverride.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Should_Prefer_Env_AllowUrlOverride_Over_AppSettings()
+    {
+        // Arrange — env-first priority matches BlockPrivateHosts
+        using var env = new EnvScope(new Dictionary<string, string?>
+        {
+            ["SEQ_ALLOW_URL_OVERRIDE"] = "false",
+        });
+        var config = BuildConfig(new Dictionary<string, string?>
+        {
+            ["Seq:AllowUrlOverride"] = "true",
+        });
+
+        // Act
+        var options = SeqOptionsLoader.Load(config);
+
+        // Assert
+        options.AllowUrlOverride.Should().BeFalse();
     }
 }
