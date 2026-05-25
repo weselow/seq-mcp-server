@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using SeqMcp.Configuration;
+using SeqMcp.Middleware;
 using SeqMcp.Services;
 using SeqMcp.Tools;
 using SeqMcp.Resources;
@@ -16,12 +17,12 @@ builder.Logging.SetMinimumLevel(LogLevel.Information);
 // Configure Seq settings
 // Priority: appsettings.json > Environment Variables
 var seqUrl = Environment.GetEnvironmentVariable("SEQ_URL")
-             ?? Environment.GetEnvironmentVariable("SEQ_SERVER_URL") 
+             ?? Environment.GetEnvironmentVariable("SEQ_SERVER_URL")
              ?? builder.Configuration["Seq:Url"]
              ?? "http://localhost:8080";
 
-var seqApiKey = Environment.GetEnvironmentVariable("SEQ_API_KEY") 
-    ?? builder.Configuration["Seq:ApiKey"]; 
+var seqApiKey = Environment.GetEnvironmentVariable("SEQ_API_KEY")
+    ?? builder.Configuration["Seq:ApiKey"];
 
 // Optional: Project scope filtering
 var defaultProjectScope = builder.Configuration["Seq:ProjectScope"]
@@ -129,42 +130,9 @@ app.Use(async (context, next) =>
     await next();
 });
 
-// Enable detailed request/response logging
-app.Use(async (context, next) =>
-{
-    app.Logger.LogInformation("HTTP {Method} {Path} from {RemoteIp}",
-        context.Request.Method,
-        context.Request.Path,
-        context.Connection.RemoteIpAddress);
-
-    // Read request body
-    context.Request.EnableBuffering();
-    using var reader = new StreamReader(context.Request.Body, System.Text.Encoding.UTF8, leaveOpen: true);
-    var requestBody = await reader.ReadToEndAsync();
-    context.Request.Body.Position = 0;
-
-    if (!string.IsNullOrEmpty(requestBody))
-    {
-        app.Logger.LogInformation("Request body: {Body}", requestBody);
-    }
-
-    // Capture response
-    var originalBody = context.Response.Body;
-    using var responseBody = new MemoryStream();
-    context.Response.Body = responseBody;
-
-    await next();
-
-    responseBody.Seek(0, SeekOrigin.Begin);
-    var responseText = await new StreamReader(responseBody).ReadToEndAsync();
-    responseBody.Seek(0, SeekOrigin.Begin);
-
-    app.Logger.LogInformation("Response status: {Status}, body: {Body}",
-        context.Response.StatusCode,
-        responseText);
-
-    await responseBody.CopyToAsync(originalBody);
-});
+// HTTP request logging: только метаданные на Debug-уровне.
+// Никакого буферирования response (ломает SSE), никакого логирования тел и заголовков (утечка ключей).
+app.UseMiddleware<RequestLoggingMiddleware>();
 
 // Map Health Check endpoint
 app.MapGet("/health", async (IHealthCheckService healthCheckService) =>
