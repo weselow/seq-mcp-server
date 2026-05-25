@@ -2,7 +2,13 @@ using SeqMcp.Core.Models;
 
 namespace SeqMcp.Core.Services;
 
-public interface ISeqApiClient : IDisposable
+/// <summary>
+/// Seq API client. Lifetime: Scoped (HTTP) or Singleton (stdio).
+/// No longer <see cref="IDisposable"/> — all connection resources are
+/// owned by <see cref="ISeqConnectionFactory"/>; each method acquires a
+/// short-lived <see cref="IConnectionLease"/> per call.
+/// </summary>
+public interface ISeqApiClient
 {
     Task<SearchEventsResult> SearchEventsAsync(string filter, int limit = 100);
     Task<ListSignalsResult> ListSignalsAsync();

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using SeqMcp.Core.Configuration;
 using SeqMcp.Core.Services;
+using SeqMcp.Tests.Helpers;
 
 namespace SeqMcp.Tests.Services;
 
@@ -11,15 +12,21 @@ public class SeqApiClientErrorHandlingTests
     private static IOptions<SeqOptions> Options_(string url, string? apiKey) =>
         Options.Create(new SeqOptions { Url = url, ApiKey = apiKey });
 
+    private static (ISeqConnectionFactory factory, HttpClient http) BuildFactory(string url)
+    {
+        var http = new HttpClient { BaseAddress = new Uri(url) };
+        return (FakeConnectionFactory.For(http), http);
+    }
+
     [Fact]
     public void Should_Throw_SeqConnectionException_When_ServerUrl_Is_Invalid()
     {
         // Arrange
         var options = Options_("http://invalid-seq-server-12345.local", "test-api-key");
-        var httpClient = new HttpClient { BaseAddress = new Uri(options.Value.Url) };
+        var (factory, _) = BuildFactory(options.Value.Url);
 
         // Act & Assert
-        var act = () => new SeqApiClient(httpClient, options, NullLogger<SeqApiClient>.Instance);
+        var act = () => new SeqApiClient(factory, options, NullLogger<SeqApiClient>.Instance);
         act.Should().NotThrow("SeqApiClient constructor should not throw, connection is lazy");
     }
 
@@ -28,8 +35,8 @@ public class SeqApiClientErrorHandlingTests
     {
         // Arrange
         var options = Options_("http://localhost:5341", "invalid-api-key");
-        var httpClient = new HttpClient { BaseAddress = new Uri(options.Value.Url) };
-        using var client = new SeqApiClient(httpClient, options, NullLogger<SeqApiClient>.Instance);
+        var (factory, _) = BuildFactory(options.Value.Url);
+        var client = new SeqApiClient(factory, options, NullLogger<SeqApiClient>.Instance);
 
         // Act
         var act = async () => await client.SearchEventsAsync("", 10);
@@ -43,8 +50,8 @@ public class SeqApiClientErrorHandlingTests
     {
         // Arrange
         var options = Options_("http://localhost:5341", "test-api-key");
-        var httpClient = new HttpClient { BaseAddress = new Uri(options.Value.Url) };
-        using var client = new SeqApiClient(httpClient, options, NullLogger<SeqApiClient>.Instance);
+        var (factory, _) = BuildFactory(options.Value.Url);
+        var client = new SeqApiClient(factory, options, NullLogger<SeqApiClient>.Instance);
 
         // Act
         var result = await client.SearchEventsAsync("Level = 'NonExistentLevel'", 10);
@@ -61,8 +68,8 @@ public class SeqApiClientErrorHandlingTests
     {
         // Arrange
         var options = Options_("http://localhost:5341", "test-api-key");
-        var httpClient = new HttpClient { BaseAddress = new Uri(options.Value.Url) };
-        using var client = new SeqApiClient(httpClient, options, NullLogger<SeqApiClient>.Instance);
+        var (factory, _) = BuildFactory(options.Value.Url);
+        var client = new SeqApiClient(factory, options, NullLogger<SeqApiClient>.Instance);
 
         // Act
         var act = async () => await client.SearchEventsAsync("", -1);
@@ -77,8 +84,8 @@ public class SeqApiClientErrorHandlingTests
     {
         // Arrange
         var options = Options_("http://localhost:5341", "test-api-key");
-        var httpClient = new HttpClient { BaseAddress = new Uri(options.Value.Url) };
-        using var client = new SeqApiClient(httpClient, options, NullLogger<SeqApiClient>.Instance);
+        var (factory, _) = BuildFactory(options.Value.Url);
+        var client = new SeqApiClient(factory, options, NullLogger<SeqApiClient>.Instance);
 
         // Act
         var act = async () => await client.ExecuteSqlAsync("INVALID SQL SYNTAX HERE");

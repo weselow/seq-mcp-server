@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using System.Net;
 using Moq;
 using Moq.Protected;
+using SeqMcp.Tests.Helpers;
 
 namespace SeqMcp.Tests.Services;
 
@@ -14,34 +15,39 @@ public class HealthCheckServiceTests
     private static IOptions<SeqOptions> Options_(string url = "http://localhost:5341", string? apiKey = "test-api-key") =>
         Options.Create(new SeqOptions { Url = url, ApiKey = apiKey });
 
+    private static (ISeqConnectionFactory factory, HttpClient client) BuildFactoryWith(Mock<HttpMessageHandler> handlerMock, string url)
+    {
+        var http = new HttpClient(handlerMock.Object) { BaseAddress = new Uri(url) };
+        return (FakeConnectionFactory.For(http), http);
+    }
+
+    private static Mock<HttpMessageHandler> CreateOkHandler() =>
+        CreateHandlerReturning(new HttpResponseMessage
+        {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent("{}")
+        });
+
+    private static Mock<HttpMessageHandler> CreateHandlerReturning(HttpResponseMessage response)
+    {
+        var mock = new Mock<HttpMessageHandler>();
+        mock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(response);
+        return mock;
+    }
+
     [Fact]
     public async Task Should_Return_Healthy_Status_When_Seq_Is_Available()
     {
         // Arrange
         var options = Options_();
-
-        var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
-        mockHttpMessageHandler
-            .Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.OK,
-                Content = new StringContent("{}")
-            });
-
-        var httpClient = new HttpClient(mockHttpMessageHandler.Object)
-        {
-            BaseAddress = new Uri(options.Value.Url)
-        };
-
-        var service = new HealthCheckService(
-            httpClient,
-            options,
-            NullLogger<HealthCheckService>.Instance);
+        var handler = CreateOkHandler();
+        var (factory, _) = BuildFactoryWith(handler, options.Value.Url);
+        var service = new HealthCheckService(factory, options, NullLogger<HealthCheckService>.Instance);
 
         // Act
         var health = await service.GetHealthAsync();
@@ -62,29 +68,13 @@ public class HealthCheckServiceTests
     {
         // Arrange
         var options = Options_();
-
-        var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
-        mockHttpMessageHandler
-            .Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.ServiceUnavailable,
-                Content = new StringContent("Service unavailable")
-            });
-
-        var httpClient = new HttpClient(mockHttpMessageHandler.Object)
+        var handler = CreateHandlerReturning(new HttpResponseMessage
         {
-            BaseAddress = new Uri(options.Value.Url)
-        };
-
-        var service = new HealthCheckService(
-            httpClient,
-            options,
-            NullLogger<HealthCheckService>.Instance);
+            StatusCode = HttpStatusCode.ServiceUnavailable,
+            Content = new StringContent("Service unavailable")
+        });
+        var (factory, _) = BuildFactoryWith(handler, options.Value.Url);
+        var service = new HealthCheckService(factory, options, NullLogger<HealthCheckService>.Instance);
 
         // Act
         var health = await service.GetHealthAsync();
@@ -101,25 +91,15 @@ public class HealthCheckServiceTests
     {
         // Arrange
         var options = Options_();
-
-        var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
-        mockHttpMessageHandler
-            .Protected()
+        var mockHandler = new Mock<HttpMessageHandler>();
+        mockHandler.Protected()
             .Setup<Task<HttpResponseMessage>>(
                 "SendAsync",
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>())
             .ThrowsAsync(new HttpRequestException("Connection refused"));
-
-        var httpClient = new HttpClient(mockHttpMessageHandler.Object)
-        {
-            BaseAddress = new Uri(options.Value.Url)
-        };
-
-        var service = new HealthCheckService(
-            httpClient,
-            options,
-            NullLogger<HealthCheckService>.Instance);
+        var (factory, _) = BuildFactoryWith(mockHandler, options.Value.Url);
+        var service = new HealthCheckService(factory, options, NullLogger<HealthCheckService>.Instance);
 
         // Act
         var health = await service.GetHealthAsync();
@@ -137,29 +117,9 @@ public class HealthCheckServiceTests
     {
         // Arrange
         var options = Options_();
-
-        var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
-        mockHttpMessageHandler
-            .Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.OK,
-                Content = new StringContent("{}")
-            });
-
-        var httpClient = new HttpClient(mockHttpMessageHandler.Object)
-        {
-            BaseAddress = new Uri(options.Value.Url)
-        };
-
-        var service = new HealthCheckService(
-            httpClient,
-            options,
-            NullLogger<HealthCheckService>.Instance);
+        var handler = CreateOkHandler();
+        var (factory, _) = BuildFactoryWith(handler, options.Value.Url);
+        var service = new HealthCheckService(factory, options, NullLogger<HealthCheckService>.Instance);
 
         // Act
         var health1 = await service.GetHealthAsync();
@@ -177,29 +137,9 @@ public class HealthCheckServiceTests
     {
         // Arrange
         var options = Options_();
-
-        var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
-        mockHttpMessageHandler
-            .Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.OK,
-                Content = new StringContent("{}")
-            });
-
-        var httpClient = new HttpClient(mockHttpMessageHandler.Object)
-        {
-            BaseAddress = new Uri(options.Value.Url)
-        };
-
-        var service = new HealthCheckService(
-            httpClient,
-            options,
-            NullLogger<HealthCheckService>.Instance);
+        var handler = CreateOkHandler();
+        var (factory, _) = BuildFactoryWith(handler, options.Value.Url);
+        var service = new HealthCheckService(factory, options, NullLogger<HealthCheckService>.Instance);
 
         // Act
         var health1 = await service.GetHealthAsync();
@@ -217,29 +157,9 @@ public class HealthCheckServiceTests
     {
         // Arrange
         var options = Options_();
-
-        var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
-        mockHttpMessageHandler
-            .Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.OK,
-                Content = new StringContent("{}")
-            });
-
-        var httpClient = new HttpClient(mockHttpMessageHandler.Object)
-        {
-            BaseAddress = new Uri(options.Value.Url)
-        };
-
-        var service = new HealthCheckService(
-            httpClient,
-            options,
-            NullLogger<HealthCheckService>.Instance);
+        var handler = CreateOkHandler();
+        var (factory, _) = BuildFactoryWith(handler, options.Value.Url);
+        var service = new HealthCheckService(factory, options, NullLogger<HealthCheckService>.Instance);
 
         // Act
         var health = await service.GetHealthAsync();
@@ -249,7 +169,7 @@ public class HealthCheckServiceTests
     }
 
     [Fact]
-    public void Should_Throw_ArgumentNullException_When_HttpClient_Is_Null()
+    public void Should_Throw_ArgumentNullException_When_Factory_Is_Null()
     {
         // Arrange
         var options = Options_();
@@ -261,18 +181,19 @@ public class HealthCheckServiceTests
             NullLogger<HealthCheckService>.Instance);
 
         act.Should().Throw<ArgumentNullException>()
-            .WithParameterName("httpClient");
+            .WithParameterName("factory");
     }
 
     [Fact]
     public void Should_Throw_ArgumentNullException_When_Config_Is_Null()
     {
         // Arrange
-        var httpClient = new HttpClient { BaseAddress = new Uri("http://localhost:5341") };
+        var handler = CreateOkHandler();
+        var (factory, _) = BuildFactoryWith(handler, "http://localhost:5341");
 
         // Act & Assert
         var act = () => new HealthCheckService(
-            httpClient,
+            factory,
             null!,
             NullLogger<HealthCheckService>.Instance);
 

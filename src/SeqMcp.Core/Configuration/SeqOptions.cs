@@ -25,4 +25,16 @@ public class SeqOptions
     /// Used as fallback when no HTTP header is provided.
     /// </summary>
     public string ScopeField { get; set; } = "Application";
+
+    /// <summary>
+    /// When <c>true</c>, the connection factory's SSRF ConnectCallback
+    /// (active only for <see cref="TrustMode.HeaderOverride"/> endpoints)
+    /// additionally rejects RFC1918 private ranges
+    /// (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16).
+    /// Loopback (127.0.0.0/8, ::1) and link-local
+    /// (169.254.0.0/16, fe80::/10) are always rejected for HeaderOverride.
+    /// Default: <c>false</c>. Has no effect in PR-3 because no
+    /// <c>HeaderOverride</c> endpoints are produced yet (PR-5 wires that up).
+    /// </summary>
+    public bool BlockPrivateHosts { get; set; } = false;
 }

@@ -11,24 +11,26 @@ public interface IHealthCheckService
     Task<HealthCheckResponse> GetHealthAsync();
 }
 
+/// <summary>
+/// Pings the configured Seq endpoint to determine service health.
+/// Borrows an <see cref="HttpClient"/> from <see cref="ISeqConnectionFactory"/>
+/// for the duration of each call — no separate client is created here.
+/// </summary>
 public class HealthCheckService : IHealthCheckService
 {
-    private readonly HttpClient _httpClient;
+    private readonly ISeqConnectionFactory _factory;
     private readonly SeqOptions _options;
     private readonly ILogger<HealthCheckService> _logger;
     private readonly DateTime _startTime;
     private long _totalRequests;
 
     public HealthCheckService(
-        HttpClient httpClient,
+        ISeqConnectionFactory factory,
         IOptions<SeqOptions> options,
         ILogger<HealthCheckService> logger)
     {
-        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        if (options == null)
-        {
-            throw new ArgumentNullException(nameof(options));
-        }
+        _factory = factory ?? throw new ArgumentNullException(nameof(factory));
+        if (options is null) throw new ArgumentNullException(nameof(options));
         _options = options.Value ?? throw new ArgumentNullException(nameof(options));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _startTime = DateTime.UtcNow;
@@ -57,20 +59,20 @@ public class HealthCheckService : IHealthCheckService
             Version: version,
             UptimeSeconds: uptimeSeconds,
             SeqConnection: seqHealth,
-            Metrics: metrics
-        );
+            Metrics: metrics);
     }
 
     private async Task<SeqHealthStatus> CheckSeqConnectionAsync()
     {
         var stopwatch = Stopwatch.StartNew();
+        var endpoint = new SeqEndpoint(_options.Url, _options.ApiKey, TrustMode.TrustedConfig);
 
         try
         {
             _logger.LogDebug("Checking Seq server connection at {SeqUrl}", _options.Url);
 
-            // Try to call Seq API root endpoint
-            var response = await _httpClient.GetAsync("/api");
+            await using var lease = _factory.GetConnection(endpoint);
+            var response = await lease.HttpClient.GetAsync("/api");
             stopwatch.Stop();
 
             if (response.IsSuccessStatusCode)
@@ -78,40 +80,29 @@ public class HealthCheckService : IHealthCheckService
                 _logger.LogDebug(
                     "Seq server is healthy (response time: {ResponseTime}ms)",
                     stopwatch.ElapsedMilliseconds);
-
                 return new SeqHealthStatus(
                     IsHealthy: true,
                     Message: "Connected to Seq server",
-                    ResponseTimeMs: stopwatch.ElapsedMilliseconds
-                );
+                    ResponseTimeMs: stopwatch.ElapsedMilliseconds);
             }
-            else
-            {
-                _logger.LogWarning(
-                    "Seq server returned non-success status: {StatusCode}",
-                    response.StatusCode);
 
-                return new SeqHealthStatus(
-                    IsHealthy: false,
-                    Message: $"Seq server returned status {response.StatusCode}",
-                    ResponseTimeMs: stopwatch.ElapsedMilliseconds
-                );
-            }
+            _logger.LogWarning(
+                "Seq server returned non-success status: {StatusCode}",
+                response.StatusCode);
+            return new SeqHealthStatus(
+                IsHealthy: false,
+                Message: $"Seq server returned status {response.StatusCode}",
+                ResponseTimeMs: stopwatch.ElapsedMilliseconds);
         }
         catch (Exception ex)
         {
             stopwatch.Stop();
-
-            _logger.LogError(
-                ex,
-                "Failed to connect to Seq server at {SeqUrl}",
-                _options.Url);
-
+            _logger.LogError(ex,
+                "Failed to connect to Seq server at {SeqUrl}", _options.Url);
             return new SeqHealthStatus(
                 IsHealthy: false,
                 Message: $"Connection failed: {ex.Message}",
-                ResponseTimeMs: stopwatch.ElapsedMilliseconds
-            );
+                ResponseTimeMs: stopwatch.ElapsedMilliseconds);
         }
     }
 }

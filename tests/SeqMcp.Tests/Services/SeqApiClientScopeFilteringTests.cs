@@ -3,16 +3,19 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using SeqMcp.Core.Configuration;
 using SeqMcp.Core.Services;
+using SeqMcp.Tests.Helpers;
 
 namespace SeqMcp.Tests.Services;
 
 public class SeqApiClientScopeFilteringTests
 {
     private readonly HttpClient _httpClient;
+    private readonly ISeqConnectionFactory _factory;
 
     public SeqApiClientScopeFilteringTests()
     {
         _httpClient = new HttpClient { BaseAddress = new Uri("http://localhost:5341") };
+        _factory = FakeConnectionFactory.For(_httpClient);
     }
 
     private static IOptions<SeqOptions> Build(
@@ -37,7 +40,7 @@ public class SeqApiClientScopeFilteringTests
         var options = Build();
 
         // Act
-        using var client = new SeqApiClient(_httpClient, options, NullLogger<SeqApiClient>.Instance);
+        var client = new SeqApiClient(_factory, options, NullLogger<SeqApiClient>.Instance);
 
         // Assert
         client.Should().NotBeNull("SeqApiClient should work without SeqRequestContext");
@@ -50,7 +53,7 @@ public class SeqApiClientScopeFilteringTests
         var options = Build(projectScope: "MyProject", scopeField: "Application");
 
         // Act
-        using var client = new SeqApiClient(_httpClient, options, NullLogger<SeqApiClient>.Instance);
+        var client = new SeqApiClient(_factory, options, NullLogger<SeqApiClient>.Instance);
 
         // Assert
         client.Should().NotBeNull();
@@ -70,8 +73,8 @@ public class SeqApiClientScopeFilteringTests
         };
 
         // Act
-        using var client = new SeqApiClient(
-            _httpClient,
+        var client = new SeqApiClient(
+            _factory,
             options,
             NullLogger<SeqApiClient>.Instance,
             requestContext
@@ -135,8 +138,8 @@ public class SeqApiClientScopeFilteringTests
         };
 
         // Act
-        using var client = new SeqApiClient(
-            _httpClient,
+        var client = new SeqApiClient(
+            _factory,
             options,
             NullLogger<SeqApiClient>.Instance,
             requestContext

@@ -26,6 +26,7 @@ public class SeqOptionsLoaderTests
         "SEQ_API_KEY",
         "SEQ_PROJECT_SCOPE",
         "SEQ_SCOPE_FIELD",
+        "SEQ_BLOCK_PRIVATE_HOSTS",
         "Seq__Url",
     };
 
@@ -305,5 +306,90 @@ public class SeqOptionsLoaderTests
 
         // Assert
         options.ScopeField.Should().Be("Application");
+    }
+
+    [Fact]
+    public void Should_Default_BlockPrivateHosts_To_False()
+    {
+        // Arrange
+        using var env = new EnvScope(new Dictionary<string, string?>());
+        var config = BuildConfig();
+
+        // Act
+        var options = SeqOptionsLoader.Load(config);
+
+        // Assert
+        options.BlockPrivateHosts.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Should_Read_BlockPrivateHosts_From_Env()
+    {
+        // Arrange
+        using var env = new EnvScope(new Dictionary<string, string?>
+        {
+            ["SEQ_BLOCK_PRIVATE_HOSTS"] = "true",
+        });
+        var config = BuildConfig();
+
+        // Act
+        var options = SeqOptionsLoader.Load(config);
+
+        // Assert
+        options.BlockPrivateHosts.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Should_Read_BlockPrivateHosts_From_AppSettings_When_No_Env()
+    {
+        // Arrange
+        using var env = new EnvScope(new Dictionary<string, string?>());
+        var config = BuildConfig(new Dictionary<string, string?>
+        {
+            ["Seq:BlockPrivateHosts"] = "true",
+        });
+
+        // Act
+        var options = SeqOptionsLoader.Load(config);
+
+        // Assert
+        options.BlockPrivateHosts.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Should_Prefer_Env_BlockPrivateHosts_Over_AppSettings()
+    {
+        // Arrange — env-first priority matches Url/ApiKey
+        using var env = new EnvScope(new Dictionary<string, string?>
+        {
+            ["SEQ_BLOCK_PRIVATE_HOSTS"] = "false",
+        });
+        var config = BuildConfig(new Dictionary<string, string?>
+        {
+            ["Seq:BlockPrivateHosts"] = "true",
+        });
+
+        // Act
+        var options = SeqOptionsLoader.Load(config);
+
+        // Assert
+        options.BlockPrivateHosts.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Should_Treat_Invalid_BlockPrivateHosts_As_False()
+    {
+        // Arrange
+        using var env = new EnvScope(new Dictionary<string, string?>
+        {
+            ["SEQ_BLOCK_PRIVATE_HOSTS"] = "not-a-bool",
+        });
+        var config = BuildConfig();
+
+        // Act
+        var options = SeqOptionsLoader.Load(config);
+
+        // Assert
+        options.BlockPrivateHosts.Should().BeFalse();
     }
 }
