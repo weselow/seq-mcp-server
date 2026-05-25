@@ -1,18 +1,23 @@
 using FluentAssertions;
-using SeqMcp.Core.Services;
-using SeqMcp.Core.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using SeqMcp.Core.Configuration;
+using SeqMcp.Core.Services;
 
 namespace SeqMcp.Tests.Services;
 
 public class SeqApiClientSignalsTests
 {
-    private readonly SeqServerConfig _config;
+    private readonly IOptions<SeqOptions> _options;
     private readonly HttpClient _httpClient;
 
     public SeqApiClientSignalsTests()
     {
-        _config = new SeqServerConfig("http://localhost:5341", "test-api-key");
+        _options = Options.Create(new SeqOptions
+        {
+            Url = "http://localhost:5341",
+            ApiKey = "test-api-key",
+        });
         _httpClient = new HttpClient { BaseAddress = new Uri("http://localhost:5341") };
     }
 
@@ -20,7 +25,7 @@ public class SeqApiClientSignalsTests
     public void Should_Have_ListSignalsAsync_Method()
     {
         // Arrange
-        using var client = new SeqApiClient(_httpClient, _config, NullLogger<SeqApiClient>.Instance);
+        using var client = new SeqApiClient(_httpClient, _options, NullLogger<SeqApiClient>.Instance);
 
         // Act
         var method = client.GetType().GetMethod("ListSignalsAsync");
@@ -34,7 +39,7 @@ public class SeqApiClientSignalsTests
     public async Task Should_ListSignals_Return_Result_Integration()
     {
         // Arrange
-        using var client = new SeqApiClient(_httpClient, _config, NullLogger<SeqApiClient>.Instance);
+        using var client = new SeqApiClient(_httpClient, _options, NullLogger<SeqApiClient>.Instance);
 
         // Act
         var result = await client.ListSignalsAsync();

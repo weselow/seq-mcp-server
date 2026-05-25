@@ -1,7 +1,8 @@
 using FluentAssertions;
-using SeqMcp.Core.Services;
-using SeqMcp.Core.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using SeqMcp.Core.Configuration;
+using SeqMcp.Core.Services;
 
 namespace SeqMcp.Tests.Services;
 
@@ -14,14 +15,29 @@ public class SeqApiClientScopeFilteringTests
         _httpClient = new HttpClient { BaseAddress = new Uri("http://localhost:5341") };
     }
 
+    private static IOptions<SeqOptions> Build(
+        string url = "http://localhost:5341",
+        string? apiKey = "test-api-key",
+        string? projectScope = null,
+        string scopeField = "Application")
+    {
+        return Options.Create(new SeqOptions
+        {
+            Url = url,
+            ApiKey = apiKey,
+            ProjectScope = projectScope,
+            ScopeField = scopeField,
+        });
+    }
+
     [Fact]
     public void Should_Create_Client_Without_RequestContext()
     {
         // Arrange
-        var config = new SeqServerConfig("http://localhost:5341", "test-api-key");
+        var options = Build();
 
         // Act
-        using var client = new SeqApiClient(_httpClient, config, NullLogger<SeqApiClient>.Instance);
+        using var client = new SeqApiClient(_httpClient, options, NullLogger<SeqApiClient>.Instance);
 
         // Assert
         client.Should().NotBeNull("SeqApiClient should work without SeqRequestContext");
@@ -31,27 +47,22 @@ public class SeqApiClientScopeFilteringTests
     public void Should_Create_Client_With_DefaultProjectScope_In_Config()
     {
         // Arrange
-        var config = new SeqServerConfig(
-            "http://localhost:5341",
-            "test-api-key",
-            defaultProjectScope: "MyProject",
-            defaultScopeField: "Application"
-        );
+        var options = Build(projectScope: "MyProject", scopeField: "Application");
 
         // Act
-        using var client = new SeqApiClient(_httpClient, config, NullLogger<SeqApiClient>.Instance);
+        using var client = new SeqApiClient(_httpClient, options, NullLogger<SeqApiClient>.Instance);
 
         // Assert
         client.Should().NotBeNull();
-        config.DefaultProjectScope.Should().Be("MyProject");
-        config.DefaultScopeField.Should().Be("Application");
+        options.Value.ProjectScope.Should().Be("MyProject");
+        options.Value.ScopeField.Should().Be("Application");
     }
 
     [Fact]
     public void Should_Create_Client_With_RequestContext()
     {
         // Arrange
-        var config = new SeqServerConfig("http://localhost:5341", "test-api-key");
+        var options = Build();
         var requestContext = new SeqRequestContext
         {
             ProjectScope = "TestProject",
@@ -61,7 +72,7 @@ public class SeqApiClientScopeFilteringTests
         // Act
         using var client = new SeqApiClient(
             _httpClient,
-            config,
+            options,
             NullLogger<SeqApiClient>.Instance,
             requestContext
         );
@@ -73,30 +84,27 @@ public class SeqApiClientScopeFilteringTests
     [Fact]
     public void Should_Use_Default_ScopeField_When_Not_Provided()
     {
-        // Arrange
-        var config = new SeqServerConfig(
-            "http://localhost:5341",
-            "test-api-key",
-            defaultProjectScope: "MyProject",
-            defaultScopeField: null // Should use default "Application"
-        );
+        // Arrange — default-constructed SeqOptions has ScopeField = "Application"
+        var options = Options.Create(new SeqOptions
+        {
+            Url = "http://localhost:5341",
+            ApiKey = "test-api-key",
+            ProjectScope = "MyProject",
+            // ScopeField intentionally not set
+        });
 
         // Assert
-        config.DefaultScopeField.Should().Be("Application");
+        options.Value.ScopeField.Should().Be("Application");
     }
 
     [Fact]
     public void Should_Allow_Null_ProjectScope()
     {
         // Arrange
-        var config = new SeqServerConfig(
-            "http://localhost:5341",
-            "test-api-key",
-            defaultProjectScope: null // Optional
-        );
+        var options = Build(projectScope: null);
 
         // Assert
-        config.DefaultProjectScope.Should().BeNull("ProjectScope is optional");
+        options.Value.ProjectScope.Should().BeNull("ProjectScope is optional");
     }
 
     [Fact]
@@ -118,12 +126,7 @@ public class SeqApiClientScopeFilteringTests
     public void Should_Allow_RequestContext_Override_Config_Values()
     {
         // Arrange
-        var config = new SeqServerConfig(
-            "http://localhost:5341",
-            "test-api-key",
-            defaultProjectScope: "DefaultProject",
-            defaultScopeField: "Application"
-        );
+        var options = Build(projectScope: "DefaultProject", scopeField: "Application");
 
         var requestContext = new SeqRequestContext
         {
@@ -134,13 +137,13 @@ public class SeqApiClientScopeFilteringTests
         // Act
         using var client = new SeqApiClient(
             _httpClient,
-            config,
+            options,
             NullLogger<SeqApiClient>.Instance,
             requestContext
         );
 
         // Assert - RequestContext should take precedence over config
         client.Should().NotBeNull();
-        requestContext.ProjectScope.Should().NotBe(config.DefaultProjectScope);
+        requestContext.ProjectScope.Should().NotBe(options.Value.ProjectScope);
     }
 }

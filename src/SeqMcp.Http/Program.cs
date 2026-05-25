@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
 using SeqMcp.Core.Configuration;
+using SeqMcp.Core.Hosting;
 using SeqMcp.Http.Middleware;
 using SeqMcp.Core.Services;
 using SeqMcp.Core.Tools;
@@ -14,24 +16,9 @@ builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.SetMinimumLevel(LogLevel.Information);
 
-// Configure Seq settings
-// Priority: appsettings.json > Environment Variables
-var seqUrl = Environment.GetEnvironmentVariable("SEQ_URL")
-             ?? Environment.GetEnvironmentVariable("SEQ_SERVER_URL")
-             ?? builder.Configuration["Seq:Url"]
-             ?? "http://localhost:8080";
-
-var seqApiKey = Environment.GetEnvironmentVariable("SEQ_API_KEY")
-    ?? builder.Configuration["Seq:ApiKey"];
-
-// Optional: Project scope filtering
-var defaultProjectScope = builder.Configuration["Seq:ProjectScope"]
-    ?? Environment.GetEnvironmentVariable("SEQ_PROJECT_SCOPE");
-
-var defaultScopeField = builder.Configuration["Seq:ScopeField"]
-    ?? Environment.GetEnvironmentVariable("SEQ_SCOPE_FIELD");
-
-var seqConfig = new SeqServerConfig(seqUrl, seqApiKey, defaultProjectScope, defaultScopeField);
+// Register Seq options with the legacy per-field priority
+// (env vs appsettings) — see SeqOptionsLoader for the table.
+builder.Services.AddSeqOptions(builder.Configuration);
 
 // Configure server port
 // Priority: appsettings.json > Environment Variable
@@ -46,13 +33,12 @@ var serverUrl = $"http://0.0.0.0:{serverPort}";
 builder.WebHost.UseUrls(serverUrl);
 
 // Register Seq services
-builder.Services.AddSingleton(seqConfig);
 builder.Services.AddScoped<SeqRequestContext>(); // Per-request context for HTTP headers
 
 // Register optimized HttpClient as Singleton for Seq API
 builder.Services.AddSingleton<HttpClient>(sp =>
 {
-    var config = sp.GetRequiredService<SeqServerConfig>();
+    var seqOptions = sp.GetRequiredService<IOptions<SeqOptions>>().Value;
 
     // Configure SocketsHttpHandler with production-optimized settings
     var handler = new SocketsHttpHandler
@@ -85,12 +71,12 @@ builder.Services.AddSingleton<HttpClient>(sp =>
     {
         // REQUEST TIMEOUT: 30 seconds - balance between fast queries and slow SQL
         Timeout = TimeSpan.FromSeconds(30),
-        BaseAddress = new Uri(config.ServerUrl)
+        BaseAddress = new Uri(seqOptions.Url)
     };
 
-    if (!string.IsNullOrEmpty(config.ApiKey))
+    if (!string.IsNullOrEmpty(seqOptions.ApiKey))
     {
-        client.DefaultRequestHeaders.Add("X-Seq-ApiKey", config.ApiKey);
+        client.DefaultRequestHeaders.Add("X-Seq-ApiKey", seqOptions.ApiKey);
     }
 
     return client;
@@ -149,11 +135,12 @@ app.MapGet("/health", async (IHealthCheckService healthCheckService) =>
 // Map MCP endpoints
 app.MapMcp();
 
+var startupOptions = app.Services.GetRequiredService<IOptions<SeqOptions>>().Value;
 app.Logger.LogInformation("Seq MCP Server starting...");
 app.Logger.LogInformation("Server URL: {ServerUrl}", serverUrl);
-app.Logger.LogInformation("Seq URL: {SeqUrl}", seqUrl);
+app.Logger.LogInformation("Seq URL: {SeqUrl}", startupOptions.Url);
 app.Logger.LogInformation("Seq API Key: {ApiKeyStatus}",
-    string.IsNullOrEmpty(seqApiKey) ? "NOT SET" : $"SET (length: {seqApiKey.Length})");
+    string.IsNullOrEmpty(startupOptions.ApiKey) ? "NOT SET" : $"SET (length: {startupOptions.ApiKey.Length})");
 app.Logger.LogInformation("Transport: HTTP/SSE");
 
 // Log all registered endpoints

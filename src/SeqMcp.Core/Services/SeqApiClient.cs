@@ -2,6 +2,7 @@ using Seq.Api;
 using SeqMcp.Core.Configuration;
 using SeqMcp.Core.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System.Text.Json;
 using System.Net;
 
@@ -11,28 +12,32 @@ public class SeqApiClient : ISeqApiClient
 {
     private readonly SeqConnection _connection;
     private readonly HttpClient _httpClient;
-    private readonly SeqServerConfig _config;
+    private readonly SeqOptions _options;
     private readonly ILogger<SeqApiClient> _logger;
     private readonly SeqRequestContext? _requestContext;
 
     public SeqApiClient(
         HttpClient httpClient,
-        SeqServerConfig config,
+        IOptions<SeqOptions> options,
         ILogger<SeqApiClient> logger,
         SeqRequestContext? requestContext = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _config = config ?? throw new ArgumentNullException(nameof(config));
+        if (options == null)
+        {
+            throw new ArgumentNullException(nameof(options));
+        }
+        _options = options.Value ?? throw new ArgumentNullException(nameof(options));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _requestContext = requestContext; // Optional: null for tests
 
         _logger.LogInformation(
             "Initializing SeqApiClient for server: {ServerUrl}",
-            _config.ServerUrl);
+            _options.Url);
 
         _connection = new SeqConnection(
-            _config.ServerUrl,
-            _config.ApiKey);
+            _options.Url,
+            _options.ApiKey);
     }
 
     public async Task<SearchEventsResult> SearchEventsAsync(
@@ -241,7 +246,7 @@ public class SeqApiClient : ISeqApiClient
     {
         // Determine project scope: HTTP header → default config → null
         var projectScope = _requestContext?.ProjectScope
-                          ?? _config.DefaultProjectScope;
+                          ?? _options.ProjectScope;
 
         // If no scope, return user filter as-is
         if (string.IsNullOrWhiteSpace(projectScope))
@@ -251,7 +256,7 @@ public class SeqApiClient : ISeqApiClient
 
         // Determine scope field: HTTP header → default config
         var scopeField = _requestContext?.ScopeField
-                        ?? _config.DefaultScopeField;
+                        ?? _options.ScopeField;
 
         // Build scope filter: ScopeField = 'ProjectScope'
         var scopeFilter = $"{scopeField} = '{projectScope}'";
@@ -485,7 +490,7 @@ public class SeqApiClient : ISeqApiClient
 
             // Determine scope field for grouping
             var scopeField = _requestContext?.ScopeField
-                            ?? _config.DefaultScopeField;
+                            ?? _options.ScopeField;
 
             // Use SQL query to get unique applications with event counts
             var sqlQuery = $@"

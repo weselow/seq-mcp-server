@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using SeqMcp.Core.Configuration;
 using SeqMcp.Core.Models;
 
@@ -13,18 +14,22 @@ public interface IHealthCheckService
 public class HealthCheckService : IHealthCheckService
 {
     private readonly HttpClient _httpClient;
-    private readonly SeqServerConfig _config;
+    private readonly SeqOptions _options;
     private readonly ILogger<HealthCheckService> _logger;
     private readonly DateTime _startTime;
     private long _totalRequests;
 
     public HealthCheckService(
         HttpClient httpClient,
-        SeqServerConfig config,
+        IOptions<SeqOptions> options,
         ILogger<HealthCheckService> logger)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _config = config ?? throw new ArgumentNullException(nameof(config));
+        if (options == null)
+        {
+            throw new ArgumentNullException(nameof(options));
+        }
+        _options = options.Value ?? throw new ArgumentNullException(nameof(options));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _startTime = DateTime.UtcNow;
         _totalRequests = 0;
@@ -62,7 +67,7 @@ public class HealthCheckService : IHealthCheckService
 
         try
         {
-            _logger.LogDebug("Checking Seq server connection at {SeqUrl}", _config.ServerUrl);
+            _logger.LogDebug("Checking Seq server connection at {SeqUrl}", _options.Url);
 
             // Try to call Seq API root endpoint
             var response = await _httpClient.GetAsync("/api");
@@ -100,7 +105,7 @@ public class HealthCheckService : IHealthCheckService
             _logger.LogError(
                 ex,
                 "Failed to connect to Seq server at {SeqUrl}",
-                _config.ServerUrl);
+                _options.Url);
 
             return new SeqHealthStatus(
                 IsHealthy: false,
