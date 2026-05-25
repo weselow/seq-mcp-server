@@ -38,9 +38,22 @@ public class SeqApiClient : ISeqApiClient
 
     private SeqEndpoint ResolveEndpoint()
     {
-        // PR-3: always trust the startup config. Header-driven overrides
-        // arrive in PR-5; that's the only place TrustMode.HeaderOverride
-        // will get produced.
+        // PR-5: if SeqRequestContext carries a per-request URL, the
+        // middleware has already validated it (scheme/credentials/fragment
+        // /control-chars) AND verified that SeqOptions.AllowUrlOverride is
+        // on — no need to re-check here. Producing HeaderOverride flips on
+        // the SsrfConnectFilter in SeqConnectionFactory.
+        var ctxUrl = _requestContext?.SeqUrl;
+        var ctxKey = _requestContext?.ApiKey;
+
+        if (!string.IsNullOrWhiteSpace(ctxUrl))
+        {
+            return new SeqEndpoint(
+                ctxUrl,
+                ctxKey ?? _options.ApiKey,
+                TrustMode.HeaderOverride);
+        }
+
         return new SeqEndpoint(_options.Url, _options.ApiKey, TrustMode.TrustedConfig);
     }
 

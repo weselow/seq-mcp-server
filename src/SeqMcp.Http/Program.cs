@@ -54,25 +54,10 @@ builder.Services.AddMcpServer()
 
 var app = builder.Build();
 
-// Extract Seq scope configuration from HTTP headers (if provided)
-app.Use(async (context, next) =>
-{
-    var requestContext = context.RequestServices.GetRequiredService<SeqRequestContext>();
-
-    // Extract X-Seq-Project-Scope header (optional)
-    if (context.Request.Headers.TryGetValue("X-Seq-Project-Scope", out var projectScope))
-    {
-        requestContext.ProjectScope = projectScope.ToString();
-    }
-
-    // Extract X-Seq-Scope-Field header (optional)
-    if (context.Request.Headers.TryGetValue("X-Seq-Scope-Field", out var scopeField))
-    {
-        requestContext.ScopeField = scopeField.ToString();
-    }
-
-    await next();
-});
+// Read Seq-related request headers (scope, ApiKey, optional URL override)
+// into the per-request SeqRequestContext. Validates X-Seq-Url when override
+// is on and short-circuits with 400 on bad input.
+app.UseMiddleware<SeqHeadersMiddleware>();
 
 // HTTP request logging: только метаданные на Debug-уровне.
 // Никакого буферирования response (ломает SSE), никакого логирования тел и заголовков (утечка ключей).
@@ -99,6 +84,9 @@ app.Logger.LogInformation("Server URL: {ServerUrl}", serverUrl);
 app.Logger.LogInformation("Seq URL: {SeqUrl}", startupOptions.Url);
 app.Logger.LogInformation("Seq API Key: {ApiKeyStatus}",
     string.IsNullOrEmpty(startupOptions.ApiKey) ? "NOT SET" : $"SET (length: {startupOptions.ApiKey.Length})");
+app.Logger.LogInformation(
+    "Multi-tenancy: AllowUrlOverride={AllowUrlOverride}, BlockPrivateHosts={BlockPrivateHosts}",
+    startupOptions.AllowUrlOverride, startupOptions.BlockPrivateHosts);
 app.Logger.LogInformation("Transport: HTTP/SSE");
 
 // Log all registered endpoints

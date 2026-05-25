@@ -41,7 +41,7 @@ internal sealed class SsrfConnectFilter
 
         foreach (var ip in addresses)
         {
-            if (IsForbidden(ip))
+            if (IsForbidden(ip, _blockPrivateHosts))
             {
                 _logger.LogWarning(
                     "SSRF guard: rejecting connection to {Host}:{Port} — resolved to forbidden IP {Ip}",
@@ -72,12 +72,16 @@ internal sealed class SsrfConnectFilter
         return await Dns.GetHostAddressesAsync(host, ct).ConfigureAwait(false);
     }
 
-    private bool IsForbidden(IPAddress ip)
+    /// <summary>
+    /// Pure decision function — exposed as <c>internal</c> so the test
+    /// suite can exercise every range without a real TCP connect.
+    /// </summary>
+    internal static bool IsForbidden(IPAddress ip, bool blockPrivateHosts)
     {
         if (IPAddress.IsLoopback(ip)) return true;          // 127.0.0.0/8, ::1
         if (ip.IsIPv6LinkLocal) return true;                 // fe80::/10
         if (IsIPv4LinkLocal(ip)) return true;                // 169.254.0.0/16
-        if (_blockPrivateHosts && IsRfc1918(ip)) return true;
+        if (blockPrivateHosts && IsRfc1918(ip)) return true;
         return false;
     }
 

@@ -15,6 +15,7 @@ namespace SeqMcp.Core.Hosting;
 ///   <item><c>ProjectScope</c>: <c>Seq:ProjectScope</c> → env <c>SEQ_PROJECT_SCOPE</c></item>
 ///   <item><c>ScopeField</c>: <c>Seq:ScopeField</c> → env <c>SEQ_SCOPE_FIELD</c> → default <c>Application</c></item>
 ///   <item><c>BlockPrivateHosts</c>: env <c>SEQ_BLOCK_PRIVATE_HOSTS</c> → <c>Seq:BlockPrivateHosts</c> → default <c>false</c></item>
+///   <item><c>AllowUrlOverride</c>: env <c>SEQ_ALLOW_URL_OVERRIDE</c> → <c>Seq:AllowUrlOverride</c> → default <c>false</c></item>
 /// </list>
 ///
 /// The asymmetry (env-wins for Url/ApiKey, appsettings-wins for
@@ -56,6 +57,11 @@ public static class SeqOptionsLoader
             configuration["Seq:BlockPrivateHosts"]
         ));
 
+        var allowUrlOverride = ParseBool(FirstNonEmpty(
+            Environment.GetEnvironmentVariable("SEQ_ALLOW_URL_OVERRIDE"),
+            configuration["Seq:AllowUrlOverride"]
+        ));
+
         return new SeqOptions
         {
             Url = url,
@@ -63,16 +69,24 @@ public static class SeqOptionsLoader
             ProjectScope = projectScope,
             ScopeField = scopeField,
             BlockPrivateHosts = blockPrivateHosts,
+            AllowUrlOverride = allowUrlOverride,
         };
     }
 
+    /// <summary>
+    /// Parses common boolean spellings: <c>true</c>, <c>1</c>, <c>yes</c>
+    /// (case-insensitive) → <c>true</c>; everything else → <c>false</c>.
+    /// </summary>
     private static bool ParseBool(string? value)
     {
-        if (string.IsNullOrEmpty(value))
+        if (string.IsNullOrWhiteSpace(value))
         {
             return false;
         }
-        return bool.TryParse(value, out var parsed) && parsed;
+        var trimmed = value.Trim();
+        return trimmed.Equals("true", StringComparison.OrdinalIgnoreCase)
+            || trimmed.Equals("1", StringComparison.Ordinal)
+            || trimmed.Equals("yes", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? FirstNonEmpty(params string?[] candidates)
@@ -117,6 +131,7 @@ public static class SeqOptionsExtensions
             options.ProjectScope = loaded.ProjectScope;
             options.ScopeField = loaded.ScopeField;
             options.BlockPrivateHosts = loaded.BlockPrivateHosts;
+            options.AllowUrlOverride = loaded.AllowUrlOverride;
         });
 
         return services;

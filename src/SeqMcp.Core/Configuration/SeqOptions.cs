@@ -33,8 +33,23 @@ public class SeqOptions
     /// (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16).
     /// Loopback (127.0.0.0/8, ::1) and link-local
     /// (169.254.0.0/16, fe80::/10) are always rejected for HeaderOverride.
-    /// Default: <c>false</c>. Has no effect in PR-3 because no
-    /// <c>HeaderOverride</c> endpoints are produced yet (PR-5 wires that up).
+    /// Default: <c>false</c>. Wired into the connection factory; only takes
+    /// effect once <see cref="AllowUrlOverride"/> is enabled and a request
+    /// supplies <c>X-Seq-Url</c>.
     /// </summary>
     public bool BlockPrivateHosts { get; set; } = false;
+
+    /// <summary>
+    /// When <c>true</c>, the HTTP middleware accepts the <c>X-Seq-Url</c>
+    /// header and forwards the URL to <see cref="SeqRequestContext.SeqUrl"/>,
+    /// which makes <see cref="SeqMcp.Core.Services.SeqApiClient"/> resolve
+    /// to a <see cref="TrustMode.HeaderOverride"/> endpoint (activates the
+    /// SSRF connect-time filter).
+    /// Default: <c>false</c> — the header is logged-and-ignored, no
+    /// header-driven multi-tenancy. Existing single-Seq deployments are
+    /// unaffected.
+    /// Never enable on a publicly reachable MCP server without an
+    /// authenticating reverse proxy.
+    /// </summary>
+    public bool AllowUrlOverride { get; set; } = false;
 }
