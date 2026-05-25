@@ -98,12 +98,12 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Publish application
-        run: dotnet publish src/SeqMcp/SeqMcp.csproj -c Release -o ./publish
+      - name: Publish HTTP server
+        run: dotnet publish src/SeqMcp.Http/SeqMcp.Http.csproj -c Release -o ./publish/http
 
-      - name: Upload publish artifacts
+      - name: Upload HTTP publish artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: seq-mcp-server
-          path: ./publish/
+          name: seq-mcp-http
+          path: ./publish/http/
           retention-days: 7
