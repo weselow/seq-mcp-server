@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using SeqMcp.Core.Configuration;
 using SeqMcp.Core.Services;
+using SeqMcp.Tests.Helpers;
 
 namespace SeqMcp.Tests.Services;
 
@@ -14,12 +15,14 @@ public class SeqApiClientSignalManagementIntegrationTests : IAsyncLifetime
 {
     private readonly IOptions<SeqOptions> _options;
     private readonly HttpClient _httpClient;
+    private readonly ISeqConnectionFactory _factory;
     private string? _createdSignalId;
 
     public SeqApiClientSignalManagementIntegrationTests()
     {
         _options = Options.Create(new SeqOptions { Url = "http://localhost:5341", ApiKey = null });
         _httpClient = new HttpClient { BaseAddress = new Uri("http://localhost:5341") };
+        _factory = FakeConnectionFactory.For(_httpClient);
     }
 
     public Task InitializeAsync() => Task.CompletedTask;
@@ -31,7 +34,7 @@ public class SeqApiClientSignalManagementIntegrationTests : IAsyncLifetime
         {
             try
             {
-                using var client = new SeqApiClient(_httpClient, _options, NullLogger<SeqApiClient>.Instance);
+                var client = new SeqApiClient(_factory, _options, NullLogger<SeqApiClient>.Instance);
                 await client.DeleteSignalAsync(_createdSignalId);
             }
             catch
@@ -45,7 +48,7 @@ public class SeqApiClientSignalManagementIntegrationTests : IAsyncLifetime
     public async Task Should_CreateSignal_Successfully()
     {
         // Arrange
-        using var client = new SeqApiClient(_httpClient, _options, NullLogger<SeqApiClient>.Instance);
+        var client = new SeqApiClient(_factory, _options, NullLogger<SeqApiClient>.Instance);
         var title = $"Test Signal {Guid.NewGuid():N}";
         var description = "Integration test signal";
         var filter = "Level = 'Error'";
@@ -67,7 +70,7 @@ public class SeqApiClientSignalManagementIntegrationTests : IAsyncLifetime
     public async Task Should_CreateSignal_WithoutFilter()
     {
         // Arrange
-        using var client = new SeqApiClient(_httpClient, _options, NullLogger<SeqApiClient>.Instance);
+        var client = new SeqApiClient(_factory, _options, NullLogger<SeqApiClient>.Instance);
         var title = $"Test Signal No Filter {Guid.NewGuid():N}";
 
         // Act
@@ -86,7 +89,7 @@ public class SeqApiClientSignalManagementIntegrationTests : IAsyncLifetime
     public async Task Should_UpdateSignal_Successfully()
     {
         // Arrange
-        using var client = new SeqApiClient(_httpClient, _options, NullLogger<SeqApiClient>.Instance);
+        var client = new SeqApiClient(_factory, _options, NullLogger<SeqApiClient>.Instance);
         var originalTitle = $"Original Signal {Guid.NewGuid():N}";
         var createResult = await client.CreateSignalAsync(originalTitle, "Original desc", "Level = 'Error'");
         _createdSignalId = createResult.SignalId;
@@ -114,7 +117,7 @@ public class SeqApiClientSignalManagementIntegrationTests : IAsyncLifetime
     public async Task Should_UpdateSignal_PartialUpdate()
     {
         // Arrange
-        using var client = new SeqApiClient(_httpClient, _options, NullLogger<SeqApiClient>.Instance);
+        var client = new SeqApiClient(_factory, _options, NullLogger<SeqApiClient>.Instance);
         var originalTitle = $"Partial Update Test {Guid.NewGuid():N}";
         var createResult = await client.CreateSignalAsync(originalTitle, "Original", "Level = 'Error'");
         _createdSignalId = createResult.SignalId;
@@ -134,7 +137,7 @@ public class SeqApiClientSignalManagementIntegrationTests : IAsyncLifetime
     public async Task Should_DeleteSignal_Successfully()
     {
         // Arrange
-        using var client = new SeqApiClient(_httpClient, _options, NullLogger<SeqApiClient>.Instance);
+        var client = new SeqApiClient(_factory, _options, NullLogger<SeqApiClient>.Instance);
         var title = $"Signal To Delete {Guid.NewGuid():N}";
         var createResult = await client.CreateSignalAsync(title, "Will be deleted", null);
         var signalId = createResult.SignalId;
@@ -160,7 +163,7 @@ public class SeqApiClientSignalManagementIntegrationTests : IAsyncLifetime
     public async Task Should_GetApplications_Successfully()
     {
         // Arrange
-        using var client = new SeqApiClient(_httpClient, _options, NullLogger<SeqApiClient>.Instance);
+        var client = new SeqApiClient(_factory, _options, NullLogger<SeqApiClient>.Instance);
 
         // Act
         var result = await client.GetApplicationsAsync(limit: 10);
@@ -183,7 +186,7 @@ public class SeqApiClientSignalManagementIntegrationTests : IAsyncLifetime
     public async Task Should_GetApplications_RespectLimit()
     {
         // Arrange
-        using var client = new SeqApiClient(_httpClient, _options, NullLogger<SeqApiClient>.Instance);
+        var client = new SeqApiClient(_factory, _options, NullLogger<SeqApiClient>.Instance);
         var limit = 5;
 
         // Act
@@ -199,7 +202,7 @@ public class SeqApiClientSignalManagementIntegrationTests : IAsyncLifetime
     public async Task Should_CreateUpdateDelete_FullLifecycle()
     {
         // Arrange
-        using var client = new SeqApiClient(_httpClient, _options, NullLogger<SeqApiClient>.Instance);
+        var client = new SeqApiClient(_factory, _options, NullLogger<SeqApiClient>.Instance);
         var originalTitle = $"Lifecycle Test {Guid.NewGuid():N}";
 
         // Act & Assert - Create

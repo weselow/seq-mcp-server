@@ -14,4 +14,8 @@
     <PackageReference Include="Seq.Api" Version="2025.2.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="SeqMcp.Tests" />
+  </ItemGroup>
+
 </Project>

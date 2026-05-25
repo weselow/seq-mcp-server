@@ -14,6 +14,7 @@ namespace SeqMcp.Core.Hosting;
 ///   <item><c>ApiKey</c>: env <c>SEQ_API_KEY</c> → <c>Seq:ApiKey</c></item>
 ///   <item><c>ProjectScope</c>: <c>Seq:ProjectScope</c> → env <c>SEQ_PROJECT_SCOPE</c></item>
 ///   <item><c>ScopeField</c>: <c>Seq:ScopeField</c> → env <c>SEQ_SCOPE_FIELD</c> → default <c>Application</c></item>
+///   <item><c>BlockPrivateHosts</c>: env <c>SEQ_BLOCK_PRIVATE_HOSTS</c> → <c>Seq:BlockPrivateHosts</c> → default <c>false</c></item>
 /// </list>
 ///
 /// The asymmetry (env-wins for Url/ApiKey, appsettings-wins for
@@ -50,13 +51,28 @@ public static class SeqOptionsLoader
             Environment.GetEnvironmentVariable("SEQ_SCOPE_FIELD")
         ) ?? "Application";
 
+        var blockPrivateHosts = ParseBool(FirstNonEmpty(
+            Environment.GetEnvironmentVariable("SEQ_BLOCK_PRIVATE_HOSTS"),
+            configuration["Seq:BlockPrivateHosts"]
+        ));
+
         return new SeqOptions
         {
             Url = url,
             ApiKey = apiKey,
             ProjectScope = projectScope,
             ScopeField = scopeField,
+            BlockPrivateHosts = blockPrivateHosts,
         };
+    }
+
+    private static bool ParseBool(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return false;
+        }
+        return bool.TryParse(value, out var parsed) && parsed;
     }
 
     private static string? FirstNonEmpty(params string?[] candidates)
@@ -100,6 +116,7 @@ public static class SeqOptionsExtensions
             options.ApiKey = loaded.ApiKey;
             options.ProjectScope = loaded.ProjectScope;
             options.ScopeField = loaded.ScopeField;
+            options.BlockPrivateHosts = loaded.BlockPrivateHosts;
         });
 
         return services;

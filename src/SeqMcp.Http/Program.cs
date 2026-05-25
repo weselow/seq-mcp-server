@@ -35,52 +35,10 @@ builder.WebHost.UseUrls(serverUrl);
 // Register Seq services
 builder.Services.AddScoped<SeqRequestContext>(); // Per-request context for HTTP headers
 
-// Register optimized HttpClient as Singleton for Seq API
-builder.Services.AddSingleton<HttpClient>(sp =>
-{
-    var seqOptions = sp.GetRequiredService<IOptions<SeqOptions>>().Value;
-
-    // Configure SocketsHttpHandler with production-optimized settings
-    var handler = new SocketsHttpHandler
-    {
-        // CONNECTION LIFETIME: 5 minutes - balance between performance and DNS updates
-        PooledConnectionLifetime = TimeSpan.FromMinutes(5),
-
-        // IDLE TIMEOUT: 2 minutes - close unused connections
-        PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
-
-        // CONNECTION LIMIT: 10 concurrent connections to Seq server
-        MaxConnectionsPerServer = 10,
-
-        // CONNECT TIMEOUT: 15 seconds - local Seq should connect quickly
-        ConnectTimeout = TimeSpan.FromSeconds(15),
-
-        // DRAIN TIMEOUT: 5 seconds - time to drain response before closing
-        ResponseDrainTimeout = TimeSpan.FromSeconds(5),
-
-        // PERFORMANCE: Disable unnecessary features
-        AllowAutoRedirect = false,  // Seq API doesn't use redirects
-        UseCookies = false,          // Seq uses API keys, not cookies
-
-        // COMPRESSION: Enable to reduce response sizes
-        AutomaticDecompression = System.Net.DecompressionMethods.GZip
-                               | System.Net.DecompressionMethods.Deflate
-    };
-
-    var client = new HttpClient(handler, disposeHandler: true)
-    {
-        // REQUEST TIMEOUT: 30 seconds - balance between fast queries and slow SQL
-        Timeout = TimeSpan.FromSeconds(30),
-        BaseAddress = new Uri(seqOptions.Url)
-    };
-
-    if (!string.IsNullOrEmpty(seqOptions.ApiKey))
-    {
-        client.DefaultRequestHeaders.Add("X-Seq-ApiKey", seqOptions.ApiKey);
-    }
-
-    return client;
-});
+// Connection factory: owns every HttpClient + SeqConnection + SocketsHttpHandler
+// in the process. Singleton; DI disposes it on shutdown which tears down all
+// cached client pairs (it implements IAsyncDisposable).
+builder.Services.AddSingleton<ISeqConnectionFactory, SeqConnectionFactory>();
 
 builder.Services.AddScoped<ISeqApiClient, SeqApiClient>();
 builder.Services.AddScoped<SeqTools>();

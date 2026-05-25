@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using SeqMcp.Core.Configuration;
 using SeqMcp.Core.Services;
+using SeqMcp.Tests.Helpers;
 
 namespace SeqMcp.Tests.Services;
 
@@ -10,6 +11,7 @@ public class SeqApiClientSqlTests
 {
     private readonly IOptions<SeqOptions> _options;
     private readonly HttpClient _httpClient;
+    private readonly ISeqConnectionFactory _factory;
 
     public SeqApiClientSqlTests()
     {
@@ -19,13 +21,14 @@ public class SeqApiClientSqlTests
             ApiKey = "test-api-key",
         });
         _httpClient = new HttpClient { BaseAddress = new Uri("http://localhost:5341") };
+        _factory = FakeConnectionFactory.For(_httpClient);
     }
 
     [Fact]
     public async Task Should_ExecuteSql_Throw_When_Query_Is_Null()
     {
         // Arrange
-        using var client = new SeqApiClient(_httpClient, _options, NullLogger<SeqApiClient>.Instance);
+        var client = new SeqApiClient(_factory, _options, NullLogger<SeqApiClient>.Instance);
 
         // Act
         var act = async () => await client.ExecuteSqlAsync(null!);
@@ -38,7 +41,7 @@ public class SeqApiClientSqlTests
     public void Should_Have_ExecuteSqlAsync_Method()
     {
         // Arrange
-        using var client = new SeqApiClient(_httpClient, _options, NullLogger<SeqApiClient>.Instance);
+        var client = new SeqApiClient(_factory, _options, NullLogger<SeqApiClient>.Instance);
 
         // Act
         var method = client.GetType().GetMethod("ExecuteSqlAsync");
@@ -52,7 +55,7 @@ public class SeqApiClientSqlTests
     public async Task Should_ExecuteSql_Return_Result_Integration()
     {
         // Arrange
-        using var client = new SeqApiClient(_httpClient, _options, NullLogger<SeqApiClient>.Instance);
+        var client = new SeqApiClient(_factory, _options, NullLogger<SeqApiClient>.Instance);
         var query = "select count(*) from stream";
 
         // Act
