@@ -523,6 +523,45 @@ dotnet test
 dotnet test --collect:"XPlat Code Coverage"
 ```
 
+## 🧷 Stdio mode (локальный exe)
+
+Кроме HTTP/SSE сервера сервер можно собрать как самостоятельный exe со stdio-транспортом — MCP-клиент сам запускает процесс и общается с ним через stdin/stdout. Это удобно для локального использования с Claude Desktop, Cline и другими MCP-клиентами: один процесс = один Seq, API-ключ не покидает машину пользователя.
+
+### Сборка
+
+```bash
+# Windows
+dotnet publish src/SeqMcp.Stdio/SeqMcp.Stdio.csproj -c Release -r win-x64 -p:PublishSingleFile=true
+
+# Linux
+dotnet publish src/SeqMcp.Stdio/SeqMcp.Stdio.csproj -c Release -r linux-x64 -p:PublishSingleFile=true
+
+# macOS
+dotnet publish src/SeqMcp.Stdio/SeqMcp.Stdio.csproj -c Release -r osx-x64 -p:PublishSingleFile=true
+```
+
+Результат — один self-contained exe в `src/SeqMcp.Stdio/bin/Release/net9.0/<rid>/publish/`.
+
+### Конфигурация MCP-клиента
+
+Пример для Claude Desktop (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "seq": {
+      "command": "/path/to/SeqMcp.Stdio.exe",
+      "env": {
+        "SEQ_URL": "http://localhost:5341",
+        "SEQ_API_KEY": "your-api-key-if-needed"
+      }
+    }
+  }
+}
+```
+
+Логи stdio-сервера идут в stderr (stdout зарезервирован под JSON-RPC), поэтому их видно в логах MCP-клиента и они не ломают протокол.
+
 ## Разработка
 
 Проект следует строгим практикам TDD. Смотрите `docs/standards/`:

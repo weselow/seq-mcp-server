@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentAssertions" Version="8.7.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <!--
+    ProjectReference copies the Stdio entry-point binaries into the test
+    output directory (next to the test dll). Tests locate SeqMcp.Stdio.dll
+    via AppContext.BaseDirectory and launch it with `dotnet <path>`.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\SeqMcp.Stdio\SeqMcp.Stdio.csproj" />
+  </ItemGroup>
+
+</Project>
