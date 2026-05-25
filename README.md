@@ -12,27 +12,36 @@ MCP (Model Context Protocol) сервер для Seq - позволяет LLM п
 
 ## ✨ Возможности
 
+- **Два режима работы**: HTTP/SSE сервер (Docker) для команд и stdio CLI (single-file exe) для индивидуального использования с MCP-клиентами
 - **7 MCP инструментов**: Поиск событий, управление сигналами, SQL запросы, список приложений
 - **9 MCP ресурсов**: Быстрый доступ к последним событиям (seq://)
 - **8 MCP промптов**: Готовые шаблоны для анализа логов (на русском)
 - **HTTP Transport**: Server-Sent Events (SSE) по спецификации MCP 2025-03-26
+- **Мульти-арендность** (HTTP): один сервер для нескольких Seq-таргетов через `X-Seq-Url`/`X-Seq-ApiKey` (отключено по умолчанию, защита от SSRF при включении)
 - **Интеграция с Seq**: Нативная интеграция с Seq.Api 2025.2.2
 - **Scope Filtering**: Автоматическая фильтрация по проекту через HTTP заголовки/ENV
-- **Production-Ready HttpClient**: Оптимизированный Singleton с connection pooling
 - **Health Check Endpoint**: Мониторинг состояния сервера и Seq подключения
 - **Оптимизация токенов**: Краткие описания для экономии контекста LLM (экономия ~70% токенов)
 - **Русский язык**: Все описания и промпты на русском для удобства российских пользователей
 
 ## 🏗️ Архитектура
 
-- **Язык**: C# / .NET 9 (ASP.NET Core)
-- **Протокол**: MCP 2025-03-26 (Streamable HTTP/SSE)
-- **Тестирование**: xUnit с покрытием 94.4% методов, 41.9% строк кода
-- **Дизайн**: Clean Architecture со строгим TDD подходом
-- **DI**: Microsoft.Extensions.DependencyInjection
-- **Логирование**: ILogger со структурированным логированием
+- **Язык**: C# / .NET 9
+- **Протокол**: MCP 2025-03-26 (HTTP/SSE для Docker, stdio JSON-RPC для exe)
+- **Структура проектов**:
+  - `src/SeqMcp.Core` — общая библиотека (Models, Services, Tools, Resources, Prompts)
+  - `src/SeqMcp.Http` — ASP.NET Core веб-приложение (Docker)
+  - `src/SeqMcp.Stdio` — single-file CLI exe для локального запуска
+- **DI**: единая `ISeqConnectionFactory` (Singleton) с per-tenant `HttpClient`+`SeqConnection`, LRU-кэшем, lease/refcount для безопасного выселения
+- **Тестирование**: xUnit, ~170 unit-тестов + integration через `Process.Start` для stdio
+- **Логирование**: ILogger со структурированным логированием (в stdio — строго в stderr, stdout зарезервирован под JSON-RPC)
 
 ## 🚀 Быстрый старт
+
+Два варианта запуска:
+
+- **Docker (HTTP/SSE сервер)** — рекомендуется для команд, удалённых клиентов, общего деплоя. См. ниже.
+- **Stdio exe** — single-file бинарь, MCP-клиент сам запускает процесс. API-ключ не покидает машину пользователя. См. раздел [🧷 Stdio mode](#-stdio-mode-локальный-exe).
 
 ### Запуск в Docker (рекомендуется)
 
