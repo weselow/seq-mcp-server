@@ -2,6 +2,7 @@ using FluentAssertions;
 using SeqMcp.Core.Services;
 using SeqMcp.Core.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using System.Net;
 using Moq;
 using Moq.Protected;
@@ -10,11 +11,14 @@ namespace SeqMcp.Tests.Services;
 
 public class HealthCheckServiceTests
 {
+    private static IOptions<SeqOptions> Options_(string url = "http://localhost:5341", string? apiKey = "test-api-key") =>
+        Options.Create(new SeqOptions { Url = url, ApiKey = apiKey });
+
     [Fact]
     public async Task Should_Return_Healthy_Status_When_Seq_Is_Available()
     {
         // Arrange
-        var config = new SeqServerConfig("http://localhost:5341", "test-api-key");
+        var options = Options_();
 
         var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
         mockHttpMessageHandler
@@ -31,12 +35,12 @@ public class HealthCheckServiceTests
 
         var httpClient = new HttpClient(mockHttpMessageHandler.Object)
         {
-            BaseAddress = new Uri(config.ServerUrl)
+            BaseAddress = new Uri(options.Value.Url)
         };
 
         var service = new HealthCheckService(
             httpClient,
-            config,
+            options,
             NullLogger<HealthCheckService>.Instance);
 
         // Act
@@ -57,7 +61,7 @@ public class HealthCheckServiceTests
     public async Task Should_Return_Unhealthy_Status_When_Seq_Returns_Error()
     {
         // Arrange
-        var config = new SeqServerConfig("http://localhost:5341", "test-api-key");
+        var options = Options_();
 
         var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
         mockHttpMessageHandler
@@ -74,12 +78,12 @@ public class HealthCheckServiceTests
 
         var httpClient = new HttpClient(mockHttpMessageHandler.Object)
         {
-            BaseAddress = new Uri(config.ServerUrl)
+            BaseAddress = new Uri(options.Value.Url)
         };
 
         var service = new HealthCheckService(
             httpClient,
-            config,
+            options,
             NullLogger<HealthCheckService>.Instance);
 
         // Act
@@ -96,7 +100,7 @@ public class HealthCheckServiceTests
     public async Task Should_Return_Unhealthy_Status_When_Seq_Connection_Fails()
     {
         // Arrange
-        var config = new SeqServerConfig("http://localhost:5341", "test-api-key");
+        var options = Options_();
 
         var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
         mockHttpMessageHandler
@@ -109,12 +113,12 @@ public class HealthCheckServiceTests
 
         var httpClient = new HttpClient(mockHttpMessageHandler.Object)
         {
-            BaseAddress = new Uri(config.ServerUrl)
+            BaseAddress = new Uri(options.Value.Url)
         };
 
         var service = new HealthCheckService(
             httpClient,
-            config,
+            options,
             NullLogger<HealthCheckService>.Instance);
 
         // Act
@@ -132,7 +136,7 @@ public class HealthCheckServiceTests
     public async Task Should_Track_Total_Requests()
     {
         // Arrange
-        var config = new SeqServerConfig("http://localhost:5341", "test-api-key");
+        var options = Options_();
 
         var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
         mockHttpMessageHandler
@@ -149,12 +153,12 @@ public class HealthCheckServiceTests
 
         var httpClient = new HttpClient(mockHttpMessageHandler.Object)
         {
-            BaseAddress = new Uri(config.ServerUrl)
+            BaseAddress = new Uri(options.Value.Url)
         };
 
         var service = new HealthCheckService(
             httpClient,
-            config,
+            options,
             NullLogger<HealthCheckService>.Instance);
 
         // Act
@@ -172,7 +176,7 @@ public class HealthCheckServiceTests
     public async Task Should_Track_Uptime()
     {
         // Arrange
-        var config = new SeqServerConfig("http://localhost:5341", "test-api-key");
+        var options = Options_();
 
         var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
         mockHttpMessageHandler
@@ -189,12 +193,12 @@ public class HealthCheckServiceTests
 
         var httpClient = new HttpClient(mockHttpMessageHandler.Object)
         {
-            BaseAddress = new Uri(config.ServerUrl)
+            BaseAddress = new Uri(options.Value.Url)
         };
 
         var service = new HealthCheckService(
             httpClient,
-            config,
+            options,
             NullLogger<HealthCheckService>.Instance);
 
         // Act
@@ -212,7 +216,7 @@ public class HealthCheckServiceTests
     public async Task Should_Include_Version_In_Response()
     {
         // Arrange
-        var config = new SeqServerConfig("http://localhost:5341", "test-api-key");
+        var options = Options_();
 
         var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
         mockHttpMessageHandler
@@ -229,12 +233,12 @@ public class HealthCheckServiceTests
 
         var httpClient = new HttpClient(mockHttpMessageHandler.Object)
         {
-            BaseAddress = new Uri(config.ServerUrl)
+            BaseAddress = new Uri(options.Value.Url)
         };
 
         var service = new HealthCheckService(
             httpClient,
-            config,
+            options,
             NullLogger<HealthCheckService>.Instance);
 
         // Act
@@ -248,12 +252,12 @@ public class HealthCheckServiceTests
     public void Should_Throw_ArgumentNullException_When_HttpClient_Is_Null()
     {
         // Arrange
-        var config = new SeqServerConfig("http://localhost:5341", "test-api-key");
+        var options = Options_();
 
         // Act & Assert
         var act = () => new HealthCheckService(
             null!,
-            config,
+            options,
             NullLogger<HealthCheckService>.Instance);
 
         act.Should().Throw<ArgumentNullException>()
@@ -273,6 +277,6 @@ public class HealthCheckServiceTests
             NullLogger<HealthCheckService>.Instance);
 
         act.Should().Throw<ArgumentNullException>()
-            .WithParameterName("config");
+            .WithParameterName("options");
     }
 }
