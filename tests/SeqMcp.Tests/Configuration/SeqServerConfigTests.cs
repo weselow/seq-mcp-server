@@ -12,7 +12,7 @@ public class SeqServerConfigTests
         var apiKey = "test-api-key";
 
         // Act
-        var config = new SeqMcp.Configuration.SeqServerConfig(url, apiKey);
+        var config = new SeqMcp.Core.Configuration.SeqServerConfig(url, apiKey);
 
         // Assert
         config.ServerUrl.Should().Be(url);
@@ -26,7 +26,7 @@ public class SeqServerConfigTests
         var url = "http://localhost:5341";
 
         // Act
-        var config = new SeqMcp.Configuration.SeqServerConfig(url);
+        var config = new SeqMcp.Core.Configuration.SeqServerConfig(url);
 
         // Assert
         config.ServerUrl.Should().Be(url);
@@ -40,7 +40,7 @@ public class SeqServerConfigTests
     public void Should_Throw_When_Url_Is_Invalid(string? invalidUrl)
     {
         // Act
-        var act = () => new SeqMcp.Configuration.SeqServerConfig(invalidUrl!);
+        var act = () => new SeqMcp.Core.Configuration.SeqServerConfig(invalidUrl!);
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -54,7 +54,7 @@ public class SeqServerConfigTests
         var url = "http://localhost:5341";
 
         // Act
-        var config = new SeqMcp.Configuration.SeqServerConfig(url);
+        var config = new SeqMcp.Core.Configuration.SeqServerConfig(url);
 
         // Assert
         config.DefaultEventLimit.Should().Be(100);

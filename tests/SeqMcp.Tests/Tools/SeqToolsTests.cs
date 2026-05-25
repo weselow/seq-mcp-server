@@ -1,8 +1,8 @@
 using FluentAssertions;
 using Moq;
-using SeqMcp.Tools;
-using SeqMcp.Services;
-using SeqMcp.Models;
+using SeqMcp.Core.Tools;
+using SeqMcp.Core.Services;
+using SeqMcp.Core.Models;
 
 namespace SeqMcp.Tests.Tools;
 

@@ -2,7 +2,7 @@ using System.Text;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using SeqMcp.Middleware;
+using SeqMcp.Http.Middleware;
 using SeqMcp.Tests.Helpers;
 
 namespace SeqMcp.Tests.Middleware;

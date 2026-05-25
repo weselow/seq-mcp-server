@@ -21,7 +21,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\SeqMcp\SeqMcp.csproj" />
+    <ProjectReference Include="..\..\src\SeqMcp.Core\SeqMcp.Core.csproj" />
+    <ProjectReference Include="..\..\src\SeqMcp.Http\SeqMcp.Http.csproj" />
   </ItemGroup>
 
 </Project>

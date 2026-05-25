@@ -4,19 +4,20 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
 # Copy project files
-COPY ["src/SeqMcp/SeqMcp.csproj", "src/SeqMcp/"]
+COPY ["src/SeqMcp.Core/SeqMcp.Core.csproj", "src/SeqMcp.Core/"]
+COPY ["src/SeqMcp.Http/SeqMcp.Http.csproj", "src/SeqMcp.Http/"]
 COPY ["tests/SeqMcp.Tests/SeqMcp.Tests.csproj", "tests/SeqMcp.Tests/"]
 
 # Restore dependencies
-RUN dotnet restore "src/SeqMcp/SeqMcp.csproj"
+RUN dotnet restore "src/SeqMcp.Http/SeqMcp.Http.csproj"
 
 # Copy source code
 COPY . .
 
 # Build and publish
-WORKDIR "/src/src/SeqMcp"
-RUN dotnet build "SeqMcp.csproj" -c Release -o /app/build
-RUN dotnet publish "SeqMcp.csproj" -c Release -o /app/publish /p:UseAppHost=false
+WORKDIR "/src/src/SeqMcp.Http"
+RUN dotnet build "SeqMcp.Http.csproj" -c Release -o /app/build
+RUN dotnet publish "SeqMcp.Http.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Stage 2: Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
@@ -48,4 +49,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 EXPOSE 5555
 
 # Entry point
-ENTRYPOINT ["dotnet", "SeqMcp.dll"]
+ENTRYPOINT ["dotnet", "SeqMcp.Http.dll"]

@@ -1,6 +1,6 @@
 using FluentAssertions;
-using SeqMcp.Services;
-using SeqMcp.Configuration;
+using SeqMcp.Core.Services;
+using SeqMcp.Core.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace SeqMcp.Tests.Services;
@@ -40,7 +40,7 @@ public class SeqApiClientSqlTests
 
         // Assert
         method.Should().NotBeNull("ExecuteSqlAsync method should exist");
-        method!.ReturnType.Should().Be(typeof(Task<SeqMcp.Models.ExecuteSqlResult>));
+        method!.ReturnType.Should().Be(typeof(Task<SeqMcp.Core.Models.ExecuteSqlResult>));
     }
 
     [Fact(Skip = "Requires running Seq server")]
