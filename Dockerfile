@@ -23,6 +23,11 @@ RUN dotnet publish "SeqMcp.Http.csproj" -c Release -o /app/publish /p:UseAppHost
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
 
+# Install curl for the container HEALTHCHECK (not included in the aspnet runtime image)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create non-root user for security
 RUN groupadd -r seqmcp && useradd -r -g seqmcp seqmcp
 
